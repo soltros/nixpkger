@@ -58,6 +58,8 @@ def rebuild_nixos():
 
 # Function to update the NixOS configuration with the latest changes
 def update_nixos():
+    subprocess.run(["nix-env", "-u"])
+    subprocess.run(["sudo", "nix-channel", "--update"])
     subprocess.run(["sudo", "nixos-rebuild", "switch", "--upgrade"])
 
 def print_help():
