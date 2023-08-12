@@ -1,5 +1,6 @@
 import re
 import subprocess
+import sys
 
 # Function to read the contents of a configuration file
 def read_config_file(file_path):
@@ -27,12 +28,63 @@ def remove_package(packages, package_to_remove):
     else:
         return f"Package {package_to_remove} is not in the list."
 
+# Function to search for NixOS packages using nix search
+def search_packages(query):
+    try:
+        # Run the nix search command and capture the output
+        search_command = ["nix", "search", query]
+        search_output = subprocess.check_output(search_command, text=True)
+
+        # Process the output to extract package names
+        package_names = []
+        for line in search_output.split('\n'):
+            if line.strip():
+                package_names.append(line.strip().split(" ", 1)[0])  # Extract only the package names
+
+        return package_names
+    except subprocess.CalledProcessError as e:
+        return [f"Error: Unable to retrieve search results for '{query}'.", f"Command returned non-zero exit status: {e.returncode}"]
+
+# Function to list installed packages
+def list_packages(packages):
+    if packages:
+        return "Installed packages:\n" + "\n".join(packages)
+    else:
+        return "No packages are currently installed."
+
 # Function to rebuild the NixOS configuration
 def rebuild_nixos():
     subprocess.run(["sudo", "nixos-rebuild", "switch"])
 
-# Main function that orchestrates the configuration update process
+# Function to update the NixOS configuration with the latest changes
+def update_nixos():
+    subprocess.run(["sudo", "nixos-rebuild", "switch", "--upgrade"])
+
+def print_help():
+    help_text = """
+Usage: nixpkg.py <action> [<package/query>]
+
+Actions:
+  install <package name(s)> : Install one or more packages
+  remove <package name(s)>  : Remove one or more packages
+  search <query>            : Search for NixOS packages
+  list                      : List installed packages
+  update                    : Update NixOS configuration and rebuild
+
+Options:
+  --help                    : Display this help message
+"""
+    print(help_text)
+
 def main():
+    if "--help" in sys.argv:
+        print_help()
+        exit(0)
+
+    if len(sys.argv) < 2:
+        print("Usage: nixpkg.py <action> [<package/query>]")
+        exit(1)
+
     # Path to the NixOS configuration file
     config_file_path = "/etc/nixos/configuration.nix"
 
@@ -49,19 +101,42 @@ def main():
         print("Package list not found in the configuration file.")
         exit(1)
 
-    # Prompt the user to choose whether to install or uninstall a package
-    action = input("Do you want to (i)nstall or (u)ninstall a package? ").strip().lower()
+    action = sys.argv[1]
 
-    if action == "i":
-        # Prompt the user for the package to install
-        new_package = input("Enter the package you want to install: ").strip()
-        result = add_package(packages, new_package)
-    elif action == "u":
-        # Prompt the user for the package to uninstall
-        package_to_remove = input("Enter the package you want to uninstall: ").strip()
-        result = remove_package(packages, package_to_remove)
+    if action == "install":
+        if len(sys.argv) < 3:
+            print("Usage: nixpkg.py install <package name(s)>")
+            exit(1)
+        packages_to_install = sys.argv[2:]
+        for package in packages_to_install:
+            result = add_package(packages, package)
+        result = "Packages installed: " + ", ".join(packages_to_install)
+    elif action == "remove":
+        if len(sys.argv) < 3:
+            print("Usage: nixpkg.py remove <package name(s)>")
+            exit(1)
+        packages_to_remove = sys.argv[2:]
+        for package in packages_to_remove:
+            result = remove_package(packages, package)
+        result = "Packages removed: " + ", ".join(packages_to_remove)
+    elif action == "search":
+        if len(sys.argv) != 3:
+            print("Usage: nixpkg.py search <query>")
+            exit(1)
+        search_query = sys.argv[2]
+        search_results = search_packages(search_query)
+        print("Search results:")
+        for package in search_results:
+            print(package)
+        exit(0)
+    elif action == "list":
+        print(list_packages(packages))
+        exit(0)
+    elif action == "update":
+        update_nixos()
+        print("NixOS update completed.")
     else:
-        print("Invalid action. Please choose 'i' for install or 'u' for uninstall.")
+        print("Invalid action. Please choose 'install', 'remove', 'search', 'update', or 'list'.")
         exit(1)
 
     # Generate an updated package list as a string
@@ -74,7 +149,6 @@ def main():
     write_config_file(config_file_path, updated_config_contents)
 
     print("Configuration file updated.")
-    print(result)
 
     # Rebuild the NixOS configuration
     rebuild_nixos()
