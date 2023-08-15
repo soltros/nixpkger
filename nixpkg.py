@@ -69,9 +69,31 @@ def create_snapshot(config_contents):
     return snapshot_path
 
 def restore_config(restore_path):
-    with open(restore_path, "r") as restore_file:
-        restored_contents = restore_file.read()
-        write_config_file("/etc/nixos/configuration.nix", restored_contents)
+    # Check if the provided path ends with '.nix' extension
+    if not restore_path.endswith('.nix'):
+        print("Error: Provided path does not have a '.nix' extension.")
+        return
+
+    # Get the directory path and file name without the extension
+    dir_path, file_name = os.path.split(restore_path)
+    base_name, _ = os.path.splitext(file_name)
+
+    # Rename the file to 'configuration.nix'
+    new_path = os.path.join(dir_path, 'configuration.nix')
+    os.rename(restore_path, new_path)
+
+    # Create a copy of the restored configuration
+    backup_dir = "/etc/nixos/backup"
+    os.makedirs(backup_dir, exist_ok=True)
+    backup_path = os.path.join(backup_dir, f"config_backup_{base_name}.nix")
+    shutil.copy(new_path, backup_path)
+
+    # Move the configuration file to /etc/nixos
+    config_path = "/etc/nixos/configuration.nix"
+    shutil.move(new_path, config_path)
+
+    print("Configuration restored and backup created.")
+
 
 def print_help():
     help_text = """
