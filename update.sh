@@ -12,14 +12,11 @@ if ! command -v git &> /dev/null; then
     exit 1
 fi
 
-# Create the target directory if it doesn't exist
-mkdir -p "$target_dir"
-
-# Pull the latest version from the Git repository
-echo "Pulling the latest version from the Git repository..."
+# Clone the repository into a temporary directory
+echo "Cloning the repository..."
 if git clone "$repo_url" "$target_dir/nixpkg_temp"; then
-    # Copy the nixpkg.py script to the target directory
-    cp "$target_dir/nixpkg_temp/nixpkg.py" "$target_dir/"
+    # Move the contents of the cloned directory into the target directory
+    mv "$target_dir/nixpkg_temp"/* "$target_dir/"
     
     # Clean up the temporary directory
     rm -rf "$target_dir/nixpkg_temp"
