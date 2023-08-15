@@ -83,7 +83,7 @@ def restore_config(restore_path):
     os.rename(restore_path, new_path)
 
     # Create a copy of the restored configuration
-    backup_dir = "/etc/nixos/backup"
+    backup_dir = "/etc/nixos/configuration_snapshots"
     os.makedirs(backup_dir, exist_ok=True)
     backup_path = os.path.join(backup_dir, f"config_backup_{base_name}.nix")
     shutil.copy(new_path, backup_path)
