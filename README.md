@@ -8,49 +8,46 @@ The Nix Package Management Script (`nixpkg.py`) is a Python script designed to a
 Features
 --------
 
-### 1\. Install Packages
-
-To install one or more packages, run the following command:
-
-    python nixpkg.py install <package name(s)>
-
-Replace `<package name(s)>` with the names of the packages you wish to install. The script will add the specified packages to the list of system packages in the NixOS configuration and update the system configuration accordingly.
-
-### 2\. Remove Packages
-
-To remove one or more packages, use the following command:
-
-    python nixpkg.py remove <package name(s)>
-
-Replace `<package name(s)>` with the names of the packages you want to remove. The script will remove the specified packages from the list of system packages in the NixOS configuration and update the system configuration.
-
-### 3\. Search for Packages
-
-To search for NixOS packages using a specific query, use the following command:
-
-    python nixpkg.py search <query>
-
-Replace `<query>` with the search query you want to use. The script will display a list of package names that match the query using the `nix search` command.
-
-### 4\. List Installed Packages
-
-To list all installed packages, run the following command:
-
-    python nixpkg.py list
-
-This command will display a list of currently installed packages on your NixOS system.
-
-### 5\. Update NixOS Configuration
-
-To update the NixOS configuration with the latest changes, use the following command:
-
-    python nixpkg.py update
-
-This command will trigger an update of the NixOS configuration using the `nixos-rebuild switch --upgrade` command.
-
-### 6\. Print help
-
-To view the "help" area of the script, use the `--help` flag.
+1.  **Install Packages**  
+    To install one or more packages, run the following command:
+    
+        python nixpkg.py install <package name(s)>
+    
+    Replace `<package name(s)>` with the names of the packages you wish to install. The script will add the specified packages to the list of system packages in the NixOS configuration and update the system configuration accordingly.
+2.  **Remove Packages**  
+    To remove one or more packages, use the following command:
+    
+        python nixpkg.py remove <package name(s)>
+    
+    Replace `<package name(s)>` with the names of the packages you want to remove. The script will remove the specified packages from the list of system packages in the NixOS configuration and update the system configuration.
+3.  **Search for Packages**  
+    To search for NixOS packages using a specific query, use the following command:
+    
+        python nixpkg.py search <query>
+    
+    Replace `<query>` with the search query you want to use. The script will display a list of package names that match the query using the `nix search` command.
+4.  **List Installed Packages**  
+    To list all installed packages, run the following command:
+    
+        python nixpkg.py list
+    
+    This command will display a list of currently installed packages on your NixOS system.
+5.  **Update NixOS Configuration**  
+    To update the NixOS configuration with the latest changes, use the following command:
+    
+        python nixpkg.py update
+    
+    This command will trigger an update of the NixOS configuration using the `nixos-rebuild switch --upgrade` command.
+6.  **Create a Snapshot, and Restore**  
+    The script also provides the ability to create snapshots of the configuration, and restore configurations from the snapshot. Use the following commands:
+    
+        python nixpkg.py snapshot
+    
+8.  **Print Help**  
+    To view the "help" area of the script, use the `--help` flag:
+    
+        python nixpkg.py --help
+    
 
 Prerequisites
 -------------
@@ -62,23 +59,15 @@ Before using the `nixpkg.py` script, make sure you have the following prerequisi
 Usage
 -----
 
-1. Clone the repository to your local machine:
+1.  Clone the repository to your local machine:
+    
+        git clone https://github.com/soltros/nixpkg.py.git
+    
+2.  Add `python311Full` to `/etc/nixos/configuration.nix` under `environment.systemPackages`.
 
-   ```
-   git clone https://github.com/soltros/nixpkg.py.git
-   
-   ```
-2. Add `python311Full` to `/etc/nixos/configuration.nix` under `environment.systemPackages`.
 
-3. Add `nixpkg.py` to `~/scripts/`, and update permissions with ``~chmod +x ~/scripts/nixpkg.py``.
+3. Run `install.sh` to install the script and setup the Bash alias. Once the nixpkg.py alias is set up in your `.bashrc`. you can use the script with `nixpkg <action>`.
 
-```
-mkdir -p ~/scripts/
-
-cp ~/nixpkg.py/nixpkg.py ~/scripts/
-
-chmod +x ~/scripts/nixpkg.py
-```
 
 Important Notes
 ---------------
