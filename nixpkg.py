@@ -3,6 +3,9 @@
 import re
 import subprocess
 import sys
+import shutil
+import datetime
+import os
 
 # Function to read the contents of a configuration file
 def read_config_file(file_path):
@@ -30,22 +33,15 @@ def remove_package(packages, package_to_remove):
     else:
         return f"Package {package_to_remove} is not in the list."
 
-# Function to search for NixOS packages using nix search
+# Function to search for NixOS packages using nix-env -qa
 def search_packages(query):
     try:
-        # Run the nix search command and capture the output
-        search_command = ["nix", "search", query]
-        search_output = subprocess.check_output(search_command, text=True)
-
-        # Process the output to extract package names
-        package_names = []
-        for line in search_output.split('\n'):
-            if line.strip():
-                package_names.append(line.strip().split(" ", 1)[0])  # Extract only the package names
-
-        return package_names
+        # Run the nix-env -qa command
+        search_command = ["nix-env", "-qa", query]
+        subprocess.run(search_command)
     except subprocess.CalledProcessError as e:
-        return [f"Error: Unable to retrieve search results for '{query}'.", f"Command returned non-zero exit status: {e.returncode}"]
+        print(f"Error: Unable to retrieve search results for '{query}'.")
+        print(f"Command returned non-zero exit status: {e.returncode}")
 
 # Function to list installed packages
 def list_packages(packages):
@@ -64,6 +60,19 @@ def update_nixos():
     subprocess.run(["sudo", "nix-channel", "--update"])
     subprocess.run(["sudo", "nixos-rebuild", "switch", "--upgrade"])
 
+def create_snapshot(config_contents):
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    snapshot_dir = "/etc/nixos/configuration_snapshots"
+    os.makedirs(snapshot_dir, exist_ok=True)
+    snapshot_path = os.path.join(snapshot_dir, f"config_snapshot_{timestamp}.nix")
+    write_config_file(snapshot_path, config_contents)
+    return snapshot_path
+
+def restore_config(restore_path):
+    with open(restore_path, "r") as restore_file:
+        restored_contents = restore_file.read()
+        write_config_file("/etc/nixos/configuration.nix", restored_contents)
+
 def print_help():
     help_text = """
 Usage: nixpkg.py <action> [<package/query>]
@@ -74,6 +83,8 @@ Actions:
   search <query>            : Search for NixOS packages
   list                      : List installed packages
   update                    : Update NixOS configuration and rebuild
+  snapshot                  : Create a snapshot of the configuration
+  restore <path>            : Restore the configuration from a snapshot or backup
 
 Options:
   --help                    : Display this help message
@@ -128,10 +139,7 @@ def main():
             print("Usage: nixpkg.py search <query>")
             exit(1)
         search_query = sys.argv[2]
-        search_results = search_packages(search_query)
-        print("Search results:")
-        for package in search_results:
-            print(package)
+        search_packages(search_query)
         exit(0)
     elif action == "list":
         print(list_packages(packages))
@@ -139,8 +147,18 @@ def main():
     elif action == "update":
         update_nixos()
         print("NixOS update completed.")
+    elif action == "snapshot":
+        snapshot_path = create_snapshot(config_contents)
+        print(f"Configuration snapshot created: {snapshot_path}")
+    elif action == "restore":
+        if len(sys.argv) != 3:
+            print("Usage: nixpkg.py restore <path>")
+            exit(1)
+        restore_path = sys.argv[2]
+        restore_config(restore_path)
+        print("Configuration restored.")
     else:
-        print("Invalid action. Please choose 'install', 'remove', 'search', 'update', or 'list'.")
+        print("Invalid action. Please choose 'install', 'remove', 'search', 'update', 'list', 'snapshot', 'backup', or 'restore'.")
         exit(1)
 
     # Generate an updated package list as a string
