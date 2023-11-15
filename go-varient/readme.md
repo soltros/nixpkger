@@ -9,4 +9,11 @@ Nixpkg is a command-line tool designed for managing package installations and up
     - Update System: Update all packages and the NixOS system.
     - Search Packages: Search for available packages using nix-env.
 
-    The Go rewrite of Nixpkg is designed to run on Any NixOS system via a downloadable binary. No need to install dependents to use.
+  ####  The Go rewrite of Nixpkg is designed to run on Any NixOS system via a downloadable binary. No need to install dependents to use.
+
+ #### Installation: 
+ 
+ ``wget https://github.com/soltros/nixpkg.py/raw/main/go-varient/nixpkg`` 
+ ``chmod +x nixpkg``
+ ``sudo ./nixpkg``
+ 
