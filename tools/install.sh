@@ -1,4 +1,7 @@
 #!/bin/bash
+nix-channel --add https://nixos.org/channels/nixos-23.11 nixos
+
+nix-channel --update
 
 mkdir -p ~/scripts/
 cd ~/scripts/
@@ -11,5 +14,6 @@ echo "## Nix" >>  ~/.bashrc
 echo "export XDG_DATA_DIRS=~/.local/share/:~/.nix-profile/share:/usr/share" >>  ~/.bashrc
 echo "export NIXPKGS_ALLOW_UNFREE=1" >> ~/.bashrc
 echo "alias nixpkg='python ~/scripts/nix-env-nixpkgs.py'" >>  ~/.bashrc
+echo "alias nix-update='nix-env -u "*"'" >>  ~/.bashrc
 source ~/.bashrc
 echo "use 'nixpkg appname' to install apps."
