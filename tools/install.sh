@@ -12,4 +12,4 @@ echo "export XDG_DATA_DIRS=~/.local/share/:~/.nix-profile/share:/usr/share" >>  
 echo "export NIXPKGS_ALLOW_UNFREE=1" >> ~/.bashrc
 echo "alias nixpkg='python ~/scripts/nix-env-nixpkgs.py'" >>  ~/.bashrc
 source ~/.bashrc
-echo "use 'nixpkg install appname' to install apps."
+echo "use 'nixpkg appname' to install apps."
