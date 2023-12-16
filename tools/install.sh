@@ -17,3 +17,4 @@ echo "alias nixpkg='python ~/scripts/nix-env-nixpkgs.py'" >>  ~/.bashrc
 echo "alias nix-update='nix-env -u "*"'" >>  ~/.bashrc
 source ~/.bashrc
 echo "use 'nixpkg appname' to install apps."
+echo "use 'nixpkg-update' to update installed apps."
