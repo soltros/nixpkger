@@ -6,16 +6,28 @@ import sys
 import shutil
 import datetime
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Function to read the contents of a configuration file
 def read_config_file(file_path):
-    with open(file_path, "r") as config_file:
-        return config_file.read()
+    try:
+        with open(file_path, "r") as config_file:
+            return config_file.read()
+    except FileNotFoundError:
+        logging.error(f"Configuration file {file_path} not found.")
+        sys.exit(1)
 
 # Function to write content to a configuration file
 def write_config_file(file_path, content):
-    with open(file_path, "w") as config_file:
-        config_file.write(content)
+    try:
+        with open(file_path, "w") as config_file:
+            config_file.write(content)
+    except IOError as e:
+        logging.error(f"Failed to write to {file_path}: {e}")
+        sys.exit(1)
 
 # Function to add a package to a list of packages
 def add_package(packages, new_package):
@@ -36,12 +48,16 @@ def remove_package(packages, package_to_remove):
 # Function to search for NixOS packages using nix-env -qa
 def search_packages(query):
     try:
-        # Run the nix-env -qa command
         search_command = ["nix-env", "-qa", query]
-        subprocess.run(search_command)
+        result = subprocess.run(search_command, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(result.stdout)
+        else:
+            logging.error(f"Search command failed with exit status {result.returncode}")
+            sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print(f"Error: Unable to retrieve search results for '{query}'.")
-        print(f"Command returned non-zero exit status: {e.returncode}")
+        logging.error(f"Error: Unable to retrieve search results for '{query}'. {e}")
+        sys.exit(1)
 
 # Function to list installed packages
 def list_packages(packages):
@@ -52,13 +68,21 @@ def list_packages(packages):
 
 # Function to rebuild the NixOS configuration
 def rebuild_nixos():
-    subprocess.run(["sudo", "nixos-rebuild", "switch"])
+    try:
+        subprocess.run(["sudo", "nixos-rebuild", "switch"], check=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to rebuild NixOS configuration: {e}")
+        sys.exit(1)
 
 # Function to update the NixOS configuration with the latest changes
 def update_nixos():
-    subprocess.run(["nix-env", "-u"])
-    subprocess.run(["sudo", "nix-channel", "--update"])
-    subprocess.run(["sudo", "nixos-rebuild", "switch", "--upgrade"])
+    try:
+        subprocess.run(["nix-env", "-u"], check=True)
+        subprocess.run(["sudo", "nix-channel", "--update"], check=True)
+        subprocess.run(["sudo", "nixos-rebuild", "switch", "--upgrade"], check=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to update NixOS configuration: {e}")
+        sys.exit(1)
 
 def create_snapshot(config_contents):
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -69,31 +93,29 @@ def create_snapshot(config_contents):
     return snapshot_path
 
 def restore_config(restore_path):
-    # Check if the provided path ends with '.nix' extension
     if not restore_path.endswith('.nix'):
-        print("Error: Provided path does not have a '.nix' extension.")
+        logging.error("Error: Provided path does not have a '.nix' extension.")
         return
 
-    # Get the directory path and file name without the extension
     dir_path, file_name = os.path.split(restore_path)
     base_name, _ = os.path.splitext(file_name)
-
-    # Rename the file to 'configuration.nix'
     new_path = os.path.join(dir_path, 'configuration.nix')
     os.rename(restore_path, new_path)
-
-    # Create a copy of the restored configuration
     backup_dir = "/etc/nixos/configuration_snapshots"
     os.makedirs(backup_dir, exist_ok=True)
     backup_path = os.path.join(backup_dir, f"config_backup_{base_name}.nix")
     shutil.copy(new_path, backup_path)
-
-    # Move the configuration file to /etc/nixos
     config_path = "/etc/nixos/configuration.nix"
     shutil.move(new_path, config_path)
+    logging.info("Configuration restored and backup created.")
 
-    print("Configuration restored and backup created.")
-
+def create_backup(config_file_path):
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    backup_dir = "/etc/nixos/configuration_backups"
+    os.makedirs(backup_dir, exist_ok=True)
+    backup_path = os.path.join(backup_dir, f"config_backup_{timestamp}.nix")
+    shutil.copy(config_file_path, backup_path)
+    return backup_path
 
 def print_help():
     help_text = """
@@ -107,6 +129,7 @@ Actions:
   update                    : Update NixOS configuration and rebuild
   snapshot                  : Create a snapshot of the configuration
   restore <path>            : Restore the configuration from a snapshot or backup
+  backup                    : Create a backup of the current configuration
 
 Options:
   --help                    : Display this help message
@@ -122,20 +145,15 @@ def main():
         print("Usage: nixpkg.py <action> [<package/query>]")
         exit(1)
 
-    # Path to the NixOS configuration file
     config_file_path = "/etc/nixos/configuration.nix"
-
-    # Read the contents of the configuration file
     config_contents = read_config_file(config_file_path)
 
-    # Search for the package list within the configuration file
     package_list_match = re.search(r'environment\.systemPackages\s*=\s*with\s+pkgs;\s*\[(.*?)\];', config_contents, re.DOTALL)
     if package_list_match:
-        # Extract the package list and split it into individual package names
         package_list = package_list_match.group(1).strip()
         packages = package_list.split()
     else:
-        print("Package list not found in the configuration file.")
+        logging.error("Package list not found in the configuration file.")
         exit(1)
 
     action = sys.argv[1]
@@ -146,16 +164,16 @@ def main():
             exit(1)
         packages_to_install = sys.argv[2:]
         for package in packages_to_install:
-            result = add_package(packages, package)
-        result = "Packages installed: " + ", ".join(packages_to_install)
+            print(add_package(packages, package))
+        print(f"Packages installed: {', '.join(packages_to_install)}")
     elif action == "remove":
         if len(sys.argv) < 3:
             print("Usage: nixpkg.py remove <package name(s)>")
             exit(1)
         packages_to_remove = sys.argv[2:]
         for package in packages_to_remove:
-            result = remove_package(packages, package)
-        result = "Packages removed: " + ", ".join(packages_to_remove)
+            print(remove_package(packages, package))
+        print(f"Packages removed: {', '.join(packages_to_remove)}")
     elif action == "search":
         if len(sys.argv) != 3:
             print("Usage: nixpkg.py search <query>")
@@ -179,22 +197,18 @@ def main():
         restore_path = sys.argv[2]
         restore_config(restore_path)
         print("Configuration restored.")
+    elif action == "backup":
+        backup_path = create_backup(config_file_path)
+        print(f"Configuration backup created: {backup_path}")
     else:
         print("Invalid action. Please choose 'install', 'remove', 'search', 'update', 'list', 'snapshot', 'backup', or 'restore'.")
         exit(1)
 
-    # Generate an updated package list as a string
     new_package_list = " ".join(packages)
-
-    # Replace the old package list in the configuration contents with the updated one
     updated_config_contents = re.sub(r'(environment\.systemPackages\s*=\s*with\s+pkgs;\s*\[).*?(];)', f'\\1\n    {new_package_list}\n  \\2', config_contents, flags=re.DOTALL)
-
-    # Write the updated configuration contents back to the file
     write_config_file(config_file_path, updated_config_contents)
-
     print("Configuration file updated.")
 
-    # Rebuild the NixOS configuration
     rebuild_nixos()
     print("NixOS rebuild completed.")
 
