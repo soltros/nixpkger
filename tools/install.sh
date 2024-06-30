@@ -1,5 +1,5 @@
 #!/bin/bash
-nix-channel --add https://nixos.org/channels/nixos-23.11 nixos
+nix-channel --add https://nixos.org/channels/nixos-24.05 nixos
 
 nix-channel --update
 
