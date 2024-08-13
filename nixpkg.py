@@ -17,7 +17,7 @@ def read_config_file(file_path):
         with open(file_path, "r") as config_file:
             return config_file.read()
     except FileNotFoundError:
-        logging.error(f"Configuration file {file_path} not found.")
+        logging.error(f"apps.nix file {file_path} not found.")
         sys.exit(1)
 
 # Function to write content to a configuration file
@@ -86,9 +86,9 @@ def update_nixos():
 
 def create_snapshot(config_contents):
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    snapshot_dir = "/etc/nixos/configuration_snapshots"
+    snapshot_dir = "/etc/nixos/app_snapshots"
     os.makedirs(snapshot_dir, exist_ok=True)
-    snapshot_path = os.path.join(snapshot_dir, f"config_snapshot_{timestamp}.nix")
+    snapshot_path = os.path.join(snapshot_dir, f"app_snapshot_{timestamp}.nix")
     write_config_file(snapshot_path, config_contents)
     return snapshot_path
 
@@ -99,21 +99,21 @@ def restore_config(restore_path):
 
     dir_path, file_name = os.path.split(restore_path)
     base_name, _ = os.path.splitext(file_name)
-    new_path = os.path.join(dir_path, 'configuration.nix')
+    new_path = os.path.join(dir_path, 'apps.nix')
     os.rename(restore_path, new_path)
-    backup_dir = "/etc/nixos/configuration_snapshots"
+    backup_dir = "/etc/nixos/app_snapshots"
     os.makedirs(backup_dir, exist_ok=True)
     backup_path = os.path.join(backup_dir, f"config_backup_{base_name}.nix")
     shutil.copy(new_path, backup_path)
-    config_path = "/etc/nixos/configuration.nix"
+    config_path = "/etc/nixos/apps.nix"
     shutil.move(new_path, config_path)
     logging.info("Configuration restored and backup created.")
 
 def create_backup(config_file_path):
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    backup_dir = "/etc/nixos/configuration_backups"
+    backup_dir = "/etc/nixos/app_backups"
     os.makedirs(backup_dir, exist_ok=True)
-    backup_path = os.path.join(backup_dir, f"config_backup_{timestamp}.nix")
+    backup_path = os.path.join(backup_dir, f"app_backup_{timestamp}.nix")
     shutil.copy(config_file_path, backup_path)
     return backup_path
 
@@ -122,12 +122,12 @@ def print_help():
 Usage: nixpkg.py <action> [<package/query>]
 
 Actions:
-  install <package name(s)> : Install one or more packages
+  install <package name(s)> : Install one or more packages to apps.nix
   remove <package name(s)>  : Remove one or more packages
   search <query>            : Search for NixOS packages
-  list                      : List installed packages
+  list                      : List installed packages in apps.nix
   update                    : Update NixOS configuration and rebuild
-  snapshot                  : Create a snapshot of the configuration
+  snapshot                  : Create a snapshot of the apps.nix configuration
   restore <path>            : Restore the configuration from a snapshot or backup
   backup                    : Create a backup of the current configuration
 
@@ -145,7 +145,7 @@ def main():
         print("Usage: nixpkg.py <action> [<package/query>]")
         exit(1)
 
-    config_file_path = "/etc/nixos/configuration.nix"
+    config_file_path = "/etc/nixos/apps.nix"
     config_contents = read_config_file(config_file_path)
 
     package_list_match = re.search(r'environment\.systemPackages\s*=\s*with\s+pkgs;\s*\[(.*?)\];', config_contents, re.DOTALL)
@@ -153,7 +153,7 @@ def main():
         package_list = package_list_match.group(1).strip()
         packages = package_list.split()
     else:
-        logging.error("Package list not found in the configuration file.")
+        logging.error("Package list not found in the apps.nix configuration file.")
         exit(1)
 
     action = sys.argv[1]
@@ -189,17 +189,17 @@ def main():
         print("NixOS update completed.")
     elif action == "snapshot":
         snapshot_path = create_snapshot(config_contents)
-        print(f"Configuration snapshot created: {snapshot_path}")
+        print(f"apps.nix snapshot created: {snapshot_path}")
     elif action == "restore":
         if len(sys.argv) != 3:
             print("Usage: nixpkg.py restore <path>")
             exit(1)
         restore_path = sys.argv[2]
         restore_config(restore_path)
-        print("Configuration restored.")
+        print("apps.nix restored.")
     elif action == "backup":
         backup_path = create_backup(config_file_path)
-        print(f"Configuration backup created: {backup_path}")
+        print(f" backup created: {backup_path}")
     else:
         print("Invalid action. Please choose 'install', 'remove', 'search', 'update', 'list', 'snapshot', 'backup', or 'restore'.")
         exit(1)
@@ -207,7 +207,7 @@ def main():
     new_package_list = " ".join(packages)
     updated_config_contents = re.sub(r'(environment\.systemPackages\s*=\s*with\s+pkgs;\s*\[).*?(];)', f'\\1\n    {new_package_list}\n  \\2', config_contents, flags=re.DOTALL)
     write_config_file(config_file_path, updated_config_contents)
-    print("Configuration file updated.")
+    print("apps.nix file updated.")
 
     rebuild_nixos()
     print("NixOS rebuild completed.")
