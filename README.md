@@ -3,7 +3,11 @@ Nix Package Management Script (nixpkg.py)
 Nix Package Management Script (nixpkg.py)
 =========================================
 
-The Nix Package Management Script (`nixpkg.py`) is a Python script designed to assist with managing NixOS packages and updating the NixOS configuration. This script provides a set of functions that allow you to perform various package-related tasks, such as installing, removing, searching for packages, listing installed packages, updating the NixOS configuration, and rebuilding the system configuration.
+The Nix Package Management Script (`nixpkg.py`) is a Python script designed to assist with managing NixOS packages and updating the NixOS configuration. This script provides a set of functions that allow you to perform various package-related tasks, such as installing, removing, searching for packages, listing installed packages, updating the NixOS configuration, and rebuilding the system configuration. To install:
+
+```
+curl https://raw.githubusercontent.com/soltros/nixpkg.py/main/setup.sh | bash
+```
 
 Features
 --------
