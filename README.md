@@ -48,6 +48,6 @@ To view the "help" area of the script, use the --help flag:
 
 Important Notes: The script may require administrative privileges (sudo) for certain actions, such as updating the NixOS configuration. Be cautious when adding or removing packages, as it may affect the stability and functionality of your NixOS system.
 
-##Contributing
+## Contributing
 
 If you would like to contribute to the development of this script, feel free to fork the repository and submit pull requests.
