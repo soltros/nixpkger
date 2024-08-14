@@ -45,18 +45,15 @@ def remove_package(packages, package_to_remove):
     else:
         return f"Package {package_to_remove} is not in the list."
 
-# Function to search for NixOS packages using nix-env -qa
+# Function to search for NixOS packages using nix-env -qaP
 def search_packages(query):
     try:
-        search_command = ["nix-env", "-qa", query]
-        result = subprocess.run(search_command, capture_output=True, text=True)
-        if result.returncode == 0:
-            print(result.stdout)
-        else:
-            logging.error(f"Search command failed with exit status {result.returncode}")
-            sys.exit(1)
+        output = subprocess.check_output(["nix-env", "-qaP", query], stderr=subprocess.DEVNULL)
+        lines = output.decode("utf-8").splitlines()
+        for line in lines:
+            print(line.replace("nixos.", ""))
     except subprocess.CalledProcessError as e:
-        logging.error(f"Error: Unable to retrieve search results for '{query}'. {e}")
+        logging.error(f"Error: Unable to search for packages matching '{query}'. {e}")
         sys.exit(1)
 
 # Function to list installed packages
