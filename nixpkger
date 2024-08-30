@@ -31,4 +31,4 @@ if [ "$1" == "--help" ]; then
 fi
 
 # Call the Python script with the provided arguments
-sudo python3 python/main.py "$@"
+sudo python3 ~/home/scripts/python/main.py "$@"
