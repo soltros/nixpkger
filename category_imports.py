@@ -21,7 +21,7 @@ def add_category_import(category_name):
         return
 
     # Add the import statement directly under hardware-configuration.nix
-    lines.insert(hardware_config_index + 1, f"import {category_import};\n")
+    lines.insert(hardware_config_index + 1, f"  {category_import}\n")
 
     with open(config_file, 'w') as file:
         file.writelines(lines)

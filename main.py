@@ -89,9 +89,15 @@ def main():
                 exit(1)
             search_packages(sys.argv[2])
         elif action == "list":
-            print(list_packages(packages))
+            list_packages()
+            return
         elif action == "list-categories":
-            print(list_categories())
+            if len(sys.argv) < 3:
+                print("Usage: nixpkg.py list-categories <category-file>")
+                exit(1)
+            category_file = sys.argv[2]
+            subprocess.run(["bash", "~/scripts/resources/category-finder", category_file])
+            return
         elif action == "update":
             create_backup(config_file_path)
             update_nixos()
