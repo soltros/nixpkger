@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Setup env
-nix-shell -p python311Full wget
+nix-env -iA nixos.python311Full nixos.wget
 
 ## Download files
 cd ~/Downloads/
