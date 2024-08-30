@@ -13,8 +13,15 @@ def add_category_import(category_name):
         print(f"Category import already exists: {category_import}")
         return
 
-    # Add the import statement
-    lines.insert(1, f"import {category_import};\n")
+    # Find the index of the hardware-configuration.nix import
+    hardware_config_index = next((i for i, line in enumerate(lines) if "hardware-configuration.nix" in line), None)
+
+    if hardware_config_index is None:
+        print("Error: hardware-configuration.nix import not found.")
+        return
+
+    # Add the import statement directly under hardware-configuration.nix
+    lines.insert(hardware_config_index + 1, f"import {category_import};\n")
 
     with open(config_file, 'w') as file:
         file.writelines(lines)
