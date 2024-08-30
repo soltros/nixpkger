@@ -7,7 +7,7 @@ if [ "$(basename "$0")" != "bash" ]; then
 fi
 
 # Install necessary packages
-nix-env -iA nixos.python311Full nixos.wget nixos.unzip
+nix-env -iA nixos.python311Full nixos.unzip
 
 # Download the main.zip file
 curl -f -o /tmp/main.zip https://github.com/soltros/nixpkger/archive/refs/heads/main.zip || { echo "Failed to download main.zip"; exit 1; }
