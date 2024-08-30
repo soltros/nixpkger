@@ -5,10 +5,12 @@ nix-env -iA nixos.python311Full
 git clone https://github.com/soltros/nixpkg.py
 
 mkdir -p ~/scripts/
+mkdir -p ~/scripts/python/
 
-cp ~/nixpkg.py/nixpkg.py ~/scripts/
+cp ~/nixpkg.py/nixpkger ~/scripts/
+cp ~/nixpkg.py/python/*.py ~/scripts/python/
 
-echo -e "\nalias nixpkg='sudo python ~/scripts/nixpkg.py'" >> ~/.bashrc
+echo -e "\nalias nixpkger='bash ~/scripts/nixpkger'" >> ~/.bashrc
 
 wget https://raw.githubusercontent.com/soltros/configbuilder/main/modules/apps.nix
 
