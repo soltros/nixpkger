@@ -1,4 +1,4 @@
-nix-env -iA nixos.python311Full
+nix-env -iA nixos.python311Full nixos.wget
 
 git clone https://github.com/soltros/nixpkg.py
 
