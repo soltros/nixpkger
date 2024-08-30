@@ -4,7 +4,7 @@
 nix-env -iA nixos.python311Full nixos.wget nixos.unzip
 
 # Download the main.zip file
-wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip -O /tmp/main.zip || { echo "Failed to download main.zip"; exit 1; }
+wget https://github.com/soltros/nixpkger/archive/refs/heads/v3.zip -O /tmp/main.zip || { echo "Failed to download main.zip"; exit 1; }
 
 # Create the scripts directory
 mkdir -p ~/scripts/
