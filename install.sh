@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Check if the script is being run with bash
-if [ "$(basename "$0")" != "bash" ]; then
-  echo "Error: This script must be run with bash"
-  exit 1
-fi
-
 # Install necessary packages
 nix-env -iA nixos.python311Full nixos.unzip
 
