@@ -8,9 +8,9 @@ wget https://github.com/soltros/nixpkger/archive/refs/heads/v3.zip
 
 # Unzip the downloaded file
 unzip v3.zip
-mv nixpkger-3/ scripts/
-mkdir -p scripts/python/
-cd scripts/
+mv nixpkger-3/ ~/scripts/
+mkdir -p ~/scripts/python/
+cd ~/scripts/
 mv *.py python/
 chmod +x nixpkger
 
