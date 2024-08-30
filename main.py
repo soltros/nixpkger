@@ -41,7 +41,7 @@ def list_categories():
     file_name = sys.argv[2]
 
     # Construct the full path to the script
-    script_path = os.path.expanduser("~/scripts/nixpkger/resources/category-finder")
+    script_path = os.path.expanduser("~/scripts/resources/category-finder")
 
     if not os.path.exists(script_path):
         print(f"Script not found: {script_path}")
