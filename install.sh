@@ -4,8 +4,11 @@ nix-env -iA nixos.python311Full nixos.wget nixos.unzip
 
 wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip
 mkdir -p ~/scripts/
-unzip main.zip -d ~/scripts/
+mkdir -p ~/scripts/temp_unzip/
+unzip main.zip -d ~/scripts/temp_unzip/
+mv ~/scripts/temp_unzip/nixpkger-main/* ~/scripts/
 rm main.zip
+rm -rf ~/scripts/temp_unzip/
 
 cp ~/nixpkg.py/nixpkger ~/scripts/
 cp ~/nixpkg.py/python/*.py ~/scripts/python/
