@@ -8,12 +8,14 @@ wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip -O /tmp/mai
 
 # Create the scripts directory
 mkdir -p ~/scripts/
+mkdir -p ~/scripts/python/
 
 # Unzip the downloaded file
 unzip /tmp/main.zip -d /tmp/ || { echo "Failed to unzip main.zip"; exit 1; }
 
 # Move files from the unzipped directory to the final destination
 mv /tmp/nixpkger-main/* ~/scripts/ || { echo "Failed to move files"; exit 1; }
+mv ~/scripts/*.py ~/scripts/python/ || echo "Failed to move python files"; exit 1;}
 
 # Clean up temporary files
 rm /tmp/main.zip
