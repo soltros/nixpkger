@@ -1,9 +1,11 @@
 #!/bin/bash
 
-nix-env -iA nixos.python311Full
+nix-env -iA nixos.python311Full nixos.wget nixos.unzip
 
-git clone https://github.com/soltros/nixpkger
-mv ~/nixpkger/ ~/scripts/
+wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip
+mkdir -p ~/scripts/
+unzip main.zip -d ~/scripts/
+rm main.zip
 
 cp ~/nixpkg.py/nixpkger ~/scripts/
 cp ~/nixpkg.py/python/*.py ~/scripts/python/
