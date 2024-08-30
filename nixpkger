@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Set the script name and version
-SCRIPT_NAME="nixpkg"
+SCRIPT_NAME="nixpkger"
 SCRIPT_VERSION="3.0"
 
 # Define a function to call the Python script with sudo
