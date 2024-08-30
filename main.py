@@ -3,8 +3,10 @@
 import re
 import sys
 import os
+import subprocess
 import logging
 
+#modules
 from read_config_file import read_config_file
 from write_config_file import write_config_file
 from add_package import add_package
@@ -20,7 +22,36 @@ from print_help import print_help
 from add_category_package import add_package_to_category
 from remove_category_package import remove_package_from_category
 from category_imports import add_category_import
-from list_categories import list_categories
+
+def execute_bash_script(script_path, file_name):
+    try:
+        # Execute the bash command and capture the output
+        result = subprocess.run(["bash", script_path, file_name], capture_output=True, text=True, check=True)
+        # Return the output
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        # If the command fails, return the error
+        return f"An error occurred: {e.stderr}"
+
+def list_categories():
+    if len(sys.argv) < 3:
+        print("Usage: main.py list-categories <category-file>")
+        return
+    
+    file_name = sys.argv[2]
+
+    # Construct the full path to the script
+    script_path = os.path.expanduser("~/scripts/nixpkger/resources/category-finder")
+
+    if not os.path.exists(script_path):
+        print(f"Script not found: {script_path}")
+        return
+
+    # Execute the bash script with the given arguments
+    output = execute_bash_script(script_path, file_name)
+
+    # Display the output to the user
+    print(output)
 
 def main():
     if "--help" in sys.argv:
@@ -32,6 +63,8 @@ def main():
         exit(1)
 
     action = sys.argv[1]
+    
+    # Handle category-based actions
     if "--category" in sys.argv:
         category_index = sys.argv.index("--category")
         category_name = sys.argv[category_index + 1]
@@ -53,6 +86,7 @@ def main():
             print_help()
             exit(1)
 
+    # Handle non-category-based actions
     else:
         config_file_path = "/etc/nixos/apps.nix"
         config_contents = read_config_file(config_file_path)
@@ -92,11 +126,8 @@ def main():
             list_packages()
             return
         elif action == "list-categories":
-            if len(sys.argv) < 3:
-                print("Usage: nixpkg.py list-categories <category-file>")
-                exit(1)
-            category_file = sys.argv[2]
-            subprocess.run(["bash", "~/scripts/resources/category-finder", category_file])
+            # Call the list_categories function
+            list_categories()
             return
         elif action == "update":
             create_backup(config_file_path)

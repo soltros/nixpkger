@@ -21,7 +21,7 @@ case $1 in
     sudo_call "$@"
     ;;
   # Actions that don't require sudo
-  search|list|snapshot|add-category)
+  search|list|snapshot|add-category|list-categories)
     nosudo_call "$@"
     ;;
   # Help option
