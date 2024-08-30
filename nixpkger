@@ -4,31 +4,33 @@
 SCRIPT_NAME="nixpkg"
 SCRIPT_VERSION="3.0"
 
-# Set the script usage message
-USAGE="Usage: $SCRIPT_NAME <action> [<package/query>]
+# Define a function to call the Python script with sudo
+sudo_call() {
+  sudo python3 ~/scripts/python/main.py "$@"
+}
 
-Actions:
-  install         Install packages
-  remove          Remove packages
-  search          Search packages
-  list            List installed packages
-  list-categories List categories
-  update          Update NixOS
-  snapshot        Create a snapshot
-  restore         Restore from a snapshot
-  add-category    Add a category
+# Define a function to call the Python script without sudo
+nosudo_call() {
+  python3 ~/scripts/python/main.py "$@"
+}
 
-Options:
-  --category      Specify a category for install/remove actions
-  --help          Show this help message
-
-Version: $SCRIPT_VERSION"
-
-# Check if the user provided the --help option
-if [ "$1" == "--help" ]; then
-  echo "$USAGE"
-  exit 0
-fi
-
-# Call the Python script with the provided arguments
-sudo python3 ~/scripts/python/main.py "$@"
+# Main script logic
+case $1 in
+  # Actions that require sudo
+  install|update|remove|restore|backup)
+    sudo_call "$@"
+    ;;
+  # Actions that don't require sudo
+  search|list|snapshot|add-category)
+    nosudo_call "$@"
+    ;;
+  # Help option
+  --help)
+    nosudo_call --help
+    ;;
+  # Default case: show usage message
+  *)
+    echo "Usage: $SCRIPT_NAME <action> [<package/query>]"
+    echo "Run '$SCRIPT_NAME --help' for more information."
+    ;;
+esac
