@@ -2,10 +2,7 @@
 
 nix-env -iA nixos.python311Full
 
-git clone https://github.com/soltros/nixpkg.py
-
-mkdir -p ~/scripts/
-mkdir -p ~/scripts/python/
+git clone https://github.com/soltros/nixpkger
 
 cp ~/nixpkg.py/nixpkger ~/scripts/
 cp ~/nixpkg.py/python/*.py ~/scripts/python/
