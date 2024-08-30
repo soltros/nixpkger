@@ -8,3 +8,6 @@ def rebuild_nixos():
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to rebuild NixOS configuration: {e}")
         sys.exit(1)
+
+# Add this to initialize the logger
+logging.basicConfig(level=logging.ERROR)
