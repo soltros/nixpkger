@@ -5,7 +5,7 @@ nix-env -iA nixos.python311Full nixos.wget
 
 ## Download files
 cd ~/Downloads/
-wget https://raw.githubusercontent.com/soltros/nixpkg.py/main/install.py
+wget https://raw.githubusercontent.com/soltros/nixpkger/main/install.py
 wget https://raw.githubusercontent.com/soltros/configbuilder/main/modules/apps.nix
 python install.py
 
