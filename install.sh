@@ -1,20 +1,30 @@
 #!/bin/bash
 
+# Install necessary packages
 nix-env -iA nixos.python311Full nixos.wget nixos.unzip
 
-wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip
+# Download the main.zip file
+wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip -O /tmp/main.zip || { echo "Failed to download main.zip"; exit 1; }
+
+# Create the scripts directory
 mkdir -p ~/scripts/
-mkdir -p ~/scripts/temp_unzip/
-unzip main.zip -d ~/scripts/temp_unzip/
-mv ~/scripts/temp_unzip/nixpkger-main/* ~/scripts/
-rm main.zip
-rm -rf ~/scripts/temp_unzip/
 
-cp ~/nixpkg.py/nixpkger ~/scripts/
-cp ~/nixpkg.py/python/*.py ~/scripts/python/
+# Unzip the downloaded file
+unzip /tmp/main.zip -d /tmp/ || { echo "Failed to unzip main.zip"; exit 1; }
 
-echo -e "\nalias nixpkger='bash ~/scripts/nixpkger'" >> ~/.bashrc
+# Move files from the unzipped directory to the final destination
+mv /tmp/nixpkger-main/* ~/scripts/ || { echo "Failed to move files"; exit 1; }
 
-wget https://raw.githubusercontent.com/soltros/configbuilder/main/modules/apps.nix
+# Clean up temporary files
+rm /tmp/main.zip
+rm -rf /tmp/nixpkger-main/
 
-sudo cp apps.nix /etc/nixos/
+# Add alias to .bashrc if it doesn't exist
+grep -qxF "alias nixpkger='bash ~/scripts/nixpkger'" ~/.bashrc || echo "alias nixpkger='bash ~/scripts/nixpkger'" >> ~/.bashrc
+
+# Download and copy the apps.nix file
+wget https://raw.githubusercontent.com/soltros/configbuilder/main/modules/apps.nix -O /tmp/apps.nix || { echo "Failed to download apps.nix"; exit 1; }
+
+sudo cp /tmp/apps.nix /etc/nixos/ || { echo "Failed to copy apps.nix to /etc/nixos/"; exit 1; }
+
+echo "Setup completed successfully!"
