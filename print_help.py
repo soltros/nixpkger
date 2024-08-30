@@ -10,6 +10,7 @@ Actions:
   remove --category category-name <package name(s)>  : Remove one or more packages from a specified category.nix file.
   search <query>                                     : Search for NixOS packages
   list                                               : List installed packages in apps.nix
+  list-categories category-file.nix					 : List all installed packages in a specific category.nix file.
   update                                             : Update NixOS configuration and rebuild
   snapshot                                           : Create a snapshot of the apps.nix configuration
   restore <path>                                     : Restore the configuration from a snapshot or backup
