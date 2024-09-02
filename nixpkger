@@ -17,7 +17,7 @@ nosudo_call() {
 # Main script logic
 case $1 in
   # Actions that require sudo
-  install|update|remove|restore|backup)
+  install|update|remove|restore|backup|gc)
     sudo_call "$@"
     ;;
   # Actions that don't require sudo
