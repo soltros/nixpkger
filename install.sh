@@ -4,7 +4,7 @@
 nix-env -iA nixos.python311Full nixos.wget nixos.unzip
 
 # Download the main.zip file
-wget https://github.com/soltros/nixpkger/archive/refs/heads/v3.zip
+wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip -O v3.zip
 
 # Unzip the downloaded file
 unzip v3.zip
