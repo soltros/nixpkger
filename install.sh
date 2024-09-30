@@ -8,7 +8,7 @@ wget https://github.com/soltros/nixpkger/archive/refs/heads/main.zip -O v3.zip
 
 # Unzip the downloaded file
 unzip v3.zip
-mv nixpkger-3/ ~/scripts/
+mv nixpkger-main/ ~/scripts/
 mkdir -p ~/scripts/python/
 cd ~/scripts/
 mv *.py python/
