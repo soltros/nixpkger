@@ -79,9 +79,9 @@ def list_packages(packages):
 # Function to rebuild the NixOS configuration
 def rebuild_nixos():
     try:
-        subprocess.run(["cd", "/etc/nixos/"], check=True)
-        subprocess.run(["sudo", "nixos-rebuild", "switch", "--flake", ".#"], check=True)
-    except subprocess.CalledProcessError as e:
+        os.chdir("/etc/nixos/")
+        subprocess.run(["sudo", "nixos-rebuild", "switch", "--flake", ".#", "--verbose"], check=True)
+    except (OSError, subprocess.CalledProcessError) as e:
         logging.error(f"Failed to rebuild NixOS configuration: {e}")
         sys.exit(1)
 
@@ -120,10 +120,10 @@ def list_categories():
 def update_nixos():
     try:
         subprocess.run(["nix-env", "-u"], check=True)
-        subprocess.run(["cd", "/etc/nixos/"], check=True)
+        os.chdir("/etc/nixos/")
         subprocess.run(["sudo", "nix", "flake", "update"], check=True)
-        subprocess.run(["sudo", "nixos-rebuild", "switch", "--flake", ".#"], check=True)
-    except subprocess.CalledProcessError as e:
+        subprocess.run(["sudo", "nixos-rebuild", "switch", "--flake", ".#", "--verbose"], check=True)
+    except (OSError, subprocess.CalledProcessError) as e:
         logging.error(f"Failed to update NixOS configuration: {e}")
         sys.exit(1)
 
