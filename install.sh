@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install necessary packages
-nix-env -iA nixos.python311Full nixos.wget nixos.unzip
+nix-env -iA nixos.python311Full nixos.wget nixos.git
 
 ##Install
 git clone https://github.com/soltros/nixpkger
