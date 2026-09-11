@@ -6,8 +6,10 @@ from functools import cached_property
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import textwrap
 
 from .config import (ConfigError, TEMPLATE, atomic_write, backup, category_path,
                      edit_import, edit_packages, packages)
@@ -37,6 +39,7 @@ def parser(default_flake=None, default_impure=False):
         sub.add_argument('packages', nargs='+')
     search = actions.add_parser('search')
     search.add_argument('--json', action='store_true', help='print structured package metadata as JSON')
+    search.add_argument('--limit', type=int, default=50, help='maximum human-readable results (default: 50)')
     search.add_argument('query')
     actions.add_parser('list')
     actions.add_parser('self-update', help='check for and install the latest nixpkger release')
@@ -67,6 +70,35 @@ def nix_environment(allow_unfree=False):
 def validate(source):
     run(['nix-instantiate', '--parse', '-'], input=source, text=True,
         stdout=subprocess.DEVNULL)
+
+
+def print_search_results(records, query, limit=50):
+    total = len(records)
+    records = records[:max(0, limit)]
+    use_color = sys.stdout.isatty()
+    blue = '\033[1;34m' if use_color else ''
+    bold = '\033[1m' if use_color else ''
+    reset = '\033[0m' if use_color else ''
+    count = f'{len(records)} results' if len(records) == total else f'showing {len(records)} of {total} results'
+    print(f'{bold}Nixpkgs search{reset}  {query!r}  ·  {count}')
+    if not records:
+        print('No nixpkgs packages matched.')
+        return
+    width = shutil.get_terminal_size((100, 24)).columns
+    attr_width = min(48, max(len(str(item.get('attr', ''))) for item in records))
+    attr_width = max(12, attr_width)
+    print(f'\n  {"#":>3}  {"ATTRIBUTE":<{attr_width}}  DESCRIPTION')
+    print(f'  {"─" * 3}  {"─" * attr_width}  {"─" * max(12, width - attr_width - 12)}')
+    for number, item in enumerate(records, 1):
+        attr = str(item.get('attr', ''))
+        description = ' '.join(str(item.get('description') or 'No description provided.').split())
+        available = max(24, width - attr_width - 12)
+        lines = textwrap.wrap(description, width=available) or ['No description provided.']
+        print(f'  {number:>3}  {blue}{attr:<{attr_width}}{reset}  {lines[0]}')
+        for line in lines[1:]:
+            print(f'       {" " * attr_width}  {line}')
+    if limit < total:
+        print(f'\nShowing the first {limit} results. Use --limit N to change this.')
 
 
 @contextmanager
@@ -143,10 +175,7 @@ class Application:
                     if self.args.json:
                         print(json.dumps(records))
                     else:
-                        for item in records:
-                            print(f"{item['attr']}\t{item['description'].replace(chr(10), ' ')}")
-                        if not records:
-                            print('No nixpkgs packages matched.')
+                        print_search_results(records, self.args.query, self.args.limit)
                     return
                 except (subprocess.SubprocessError, OSError, ValueError, TypeError) as error:
                     if self.args.json:

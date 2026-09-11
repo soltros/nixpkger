@@ -58,6 +58,7 @@ not automatically add it to your NixOS configuration.
 nixpkger install firefox git
 nixpkger remove git
 nixpkger search firefox
+nixpkger search --limit 20 firefox
 nixpkger search --json firefox
 nixpkger list
 nixpkger self-update
@@ -74,6 +75,10 @@ for GUI clients, including `attr`, `pname`, `version`, `description`, long
 description, license, platforms, programs, and optional homepage/source
 position fields. It searches `nixpkgs` by default and also accepts the
 `soltros.` prefix used by the built-in soltros source.
+
+Human-readable results are ranked, numbered, aligned, colorized on interactive
+terminals, and wrapped to the terminal width. Use `--limit N` to control the
+number shown; JSON output remains structured for programmatic clients.
 
 Pass `--allow-unfree` before the command to include unfree packages during
 search and NixOS rebuild evaluation. This uses Nixpkgs' `NIXPKGS_ALLOW_UNFREE`

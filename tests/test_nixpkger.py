@@ -134,11 +134,13 @@ class FilesystemTests(unittest.TestCase):
         self.assertEqual(snapshot.read_text(), self.apps.read_text())
         self.assertEqual(next((self.root / 'app_backups').iterdir()).read_text(), TEMPLATE)
 
+    @patch('nixpkger_core.cli.search_nixos', return_value=[])
     @patch('nixpkger_core.cli.run')
-    def test_search_and_gc_without_apps(self, run):
+    def test_search_and_gc_without_apps(self, run, search_nixos):
         self.apps.unlink()
         self.assertEqual(self.invoke('search', 'hello'), 0)
-        self.assertEqual(run.call_args.args[0], ['nix-env', '-qa', '--', 'hello'])
+        search_nixos.assert_called_once_with('hello', False)
+        run.assert_not_called()
         self.assertEqual(self.invoke('gc'), 0)
         self.assertEqual(run.call_args.args[0], ['nix-collect-garbage', '-d'])
 
@@ -203,8 +205,9 @@ class FilesystemTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 0)
         self.assertEqual(output.getvalue().strip(), 'nixpkger 4.0.0')
 
+    @patch('nixpkger_core.cli.search_nixos', side_effect=FileNotFoundError('missing search service'))
     @patch('nixpkger_core.cli.run', side_effect=FileNotFoundError('missing tool'))
-    def test_missing_tool_reports_failure(self, run):
+    def test_missing_tool_reports_failure(self, run, search_nixos):
         self.assertEqual(self.invoke('search', 'git'), 1)
 
     @patch('nixpkger_core.cli.run')
