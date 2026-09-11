@@ -32,7 +32,9 @@ def parser(default_flake=None, default_impure=False):
         sub = actions.add_parser(action)
         sub.add_argument('--category')
         sub.add_argument('packages', nargs='+')
-    actions.add_parser('search').add_argument('query')
+    search = actions.add_parser('search')
+    search.add_argument('--json', action='store_true', help='print structured package metadata as JSON')
+    search.add_argument('query')
     actions.add_parser('list')
     actions.add_parser('list-categories').add_argument('category')
     actions.add_parser('add-category').add_argument('category')
@@ -129,7 +131,21 @@ class Application:
     def execute(self):
         action = self.args.action
         if action == 'search':
-            if self.args.query.startswith('soltros.'):
+            if self.args.json:
+                query = self.args.query
+                if query.startswith('soltros.'):
+                    query = query[len('soltros.'):]
+                    source = 'github:soltros/soltros_nixpkgs'
+                else:
+                    source = 'nixpkgs'
+                result = json.loads(run([*NIX, 'search', '--json', source, '--', query or '^'], capture_output=True, text=True).stdout)
+                packages = []
+                for attribute, details in sorted(result.items()):
+                    details = dict(details)
+                    details['attr'] = attribute.split('.', 3)[-1] if attribute.startswith('legacyPackages.') else attribute
+                    packages.append(details)
+                print(json.dumps(packages))
+            elif self.args.query.startswith('soltros.'):
                 search_soltros(self.args.query[len('soltros.'):], run)
             else:
                 run(['nix-env', '-qa', '--', self.args.query])

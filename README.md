@@ -58,11 +58,18 @@ not automatically add it to your NixOS configuration.
 nixpkger install firefox git
 nixpkger remove git
 nixpkger search firefox
+nixpkger search --json firefox
 nixpkger list
 ```
 
 `list` shows the packages declared in the selected module. Package names are
 Nix attributes, such as `firefox` or `python3Packages.pip`.
+
+`search --json` emits a JSON array of structured records for GUI clients. Each
+record includes the Nix search metadata available for that package, including
+`attr`, `pname`, `version`, `description`, and optional homepage/source
+position fields. It searches `nixpkgs` by default and also accepts the
+`soltros.` prefix used by the built-in soltros source.
 An unchanged package list does not trigger a rebuild.
 
 Commands that write files or change the system request sudo. Search, list,
