@@ -14,6 +14,7 @@ from .config import (ConfigError, TEMPLATE, atomic_write, backup, category_path,
 from .locations import absolute_location_options, find_module, resolve_locations
 from .sources import (NIX, enable_source, search_nixos, search_soltros,
                        current_reference)
+from .update import self_update
 from . import __version__
 
 MUTATIONS = {'install', 'remove', 'add-category', 'update', 'snapshot', 'backup', 'restore', 'gc'}
@@ -38,6 +39,7 @@ def parser(default_flake=None, default_impure=False):
     search.add_argument('--json', action='store_true', help='print structured package metadata as JSON')
     search.add_argument('query')
     actions.add_parser('list')
+    actions.add_parser('self-update', help='check for and install the latest nixpkger release')
     actions.add_parser('list-categories').add_argument('category')
     actions.add_parser('add-category').add_argument('category')
     update = actions.add_parser('update')
@@ -238,6 +240,9 @@ class Application:
 def main(argv=None, *, default_flake=None, default_impure=False):
     args = parser(default_flake, default_impure).parse_args(argv)
     try:
+        if args.action == 'self-update':
+            self_update(__version__)
+            return 0
         app = Application(args)
         if args.action in MUTATIONS:
             with locked(app.root):

@@ -60,6 +60,7 @@ nixpkger remove git
 nixpkger search firefox
 nixpkger search --json firefox
 nixpkger list
+nixpkger self-update
 ```
 
 `list` shows the packages declared in the selected module. Package names are
@@ -82,6 +83,10 @@ An unchanged package list does not trigger a rebuild.
 Commands that write files or change the system request sudo. Search, list,
 help, and version run as your user. `python3 main.py` runs with the current
 user's privileges and does not request sudo itself.
+
+`self-update` checks the latest GitHub release, downloads its source archive,
+and runs the bundled installer only when a newer version is available. It does
+not modify your NixOS configuration or package modules.
 
 ## Packages from soltros_nixpkgs
 
