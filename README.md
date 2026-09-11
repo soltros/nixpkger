@@ -65,9 +65,12 @@ nixpkger list
 `list` shows the packages declared in the selected module. Package names are
 Nix attributes, such as `firefox` or `python3Packages.pip`.
 
-`search --json` emits a JSON array of structured records for GUI clients. Each
-record includes the Nix search metadata available for that package, including
-`attr`, `pname`, `version`, `description`, and optional homepage/source
+Regular nixpkgs searches use the Elasticsearch service behind
+[search.nixos.org](https://search.nixos.org/packages), returning rich package
+metadata quickly. If that service is unavailable, nixpkger falls back to the
+local Nix evaluator. `search --json` emits a JSON array of structured records
+for GUI clients, including `attr`, `pname`, `version`, `description`, long
+description, license, platforms, programs, and optional homepage/source
 position fields. It searches `nixpkgs` by default and also accepts the
 `soltros.` prefix used by the built-in soltros source.
 

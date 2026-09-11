@@ -2,6 +2,8 @@
 import json
 import re
 from urllib.parse import quote
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 
 from .config import ConfigError, tokens
 
@@ -10,6 +12,8 @@ NIX = ['nix', '--extra-experimental-features', 'nix-command flakes']
 BEGIN = '# nixpkger: begin soltros source'
 END = '# nixpkger: end soltros source'
 REFERENCE = re.compile(re.escape(SOLTROS) + r'/[0-9a-f]{40}\?narHash=sha256-[A-Za-z0-9%_-]+')
+NIXOS_SEARCH_URL = 'https://search.nixos.org/backend/latest-51-nixos-26.05/_search'
+NIXOS_SEARCH_AUTH = 'Basic YVdWU0FMWHBadjpYOGdQSG56TDUyd0ZFZWt1eHNmUTljU2g='
 
 
 def pinned_reference(run):
@@ -79,3 +83,40 @@ def search_soltros(query, run):
         print(f'soltros.{name}\t{description}')
     if not result:
         print('No soltros packages matched.')
+
+
+def search_nixos(query, allow_unfree=False, opener=urlopen):
+    """Search the Elasticsearch index used by search.nixos.org."""
+    payload = {
+        'from': 0, 'size': 100,
+        'query': {'multi_match': {
+            'query': query.strip(),
+            'fields': ['package_attr_name^9', 'package_programs^9',
+                       'package_mainProgram^9', 'package_pname^6',
+                       'package_description^1.3', 'package_longDescription'],
+            'type': 'best_fields', 'fuzziness': 'AUTO',
+        }},
+    }
+    request = Request(NIXOS_SEARCH_URL, data=json.dumps(payload).encode(),
+                      headers={'Content-Type': 'application/json',
+                               'Authorization': NIXOS_SEARCH_AUTH}, method='POST')
+    with opener(request, timeout=12) as response:
+        document = json.loads(response.read().decode('utf-8'))
+    records = []
+    for hit in document.get('hits', {}).get('hits', []):
+        item = hit.get('_source', {})
+        licenses = item.get('package_license') or []
+        records.append({
+            'attr': item.get('package_attr_name', ''),
+            'pname': item.get('package_pname', ''),
+            'version': item.get('package_pversion', ''),
+            'description': item.get('package_description', ''),
+            'longDescription': item.get('package_longDescription', ''),
+            'homepage': item.get('package_homepage', []),
+            'position': item.get('package_position'),
+            'license': ', '.join(x.get('fullName', x.get('shortName', '')) for x in licenses),
+            'platforms': item.get('package_platforms', []),
+            'programs': item.get('package_programs', []),
+            'mainProgram': item.get('package_mainProgram', ''),
+        })
+    return records

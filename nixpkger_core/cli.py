@@ -12,7 +12,8 @@ import sys
 from .config import (ConfigError, TEMPLATE, atomic_write, backup, category_path,
                      edit_import, edit_packages, packages)
 from .locations import absolute_location_options, find_module, resolve_locations
-from .sources import enable_source, search_soltros, current_reference
+from .sources import (NIX, enable_source, search_nixos, search_soltros,
+                       current_reference)
 from . import __version__
 
 MUTATIONS = {'install', 'remove', 'add-category', 'update', 'snapshot', 'backup', 'restore', 'gc'}
@@ -134,6 +135,20 @@ class Application:
     def execute(self):
         action = self.args.action
         if action == 'search':
+            if not self.args.query.startswith('soltros.'):
+                try:
+                    records = search_nixos(self.args.query, self.args.allow_unfree)
+                    if self.args.json:
+                        print(json.dumps(records))
+                    else:
+                        for item in records:
+                            print(f"{item['attr']}\t{item['description'].replace(chr(10), ' ')}")
+                        if not records:
+                            print('No nixpkgs packages matched.')
+                    return
+                except (subprocess.SubprocessError, OSError, ValueError, TypeError) as error:
+                    if self.args.json:
+                        print(f'Elasticsearch search unavailable; falling back to Nix: {error}', file=sys.stderr)
             if self.args.json:
                 query = self.args.query
                 if query.startswith('soltros.'):
@@ -146,12 +161,12 @@ class Application:
                     command.append('--impure')
                 command += [source, '--', query or '^']
                 result = json.loads(run(command, capture_output=True, text=True, env=nix_environment(self.args.allow_unfree)).stdout)
-                packages = []
+                records = []
                 for attribute, details in sorted(result.items()):
                     details = dict(details)
                     details['attr'] = attribute.split('.', 3)[-1] if attribute.startswith('legacyPackages.') else attribute
-                    packages.append(details)
-                print(json.dumps(packages))
+                    records.append(details)
+                print(json.dumps(records))
             elif self.args.query.startswith('soltros.'):
                 search_soltros(self.args.query[len('soltros.'):], run)
             else:
