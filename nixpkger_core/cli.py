@@ -27,6 +27,7 @@ def parser(default_flake=None, default_impure=False):
     result.add_argument('--flake', default=default_flake, metavar='PATH[#HOST]',
                         help='local flake directory or flake.nix, optionally followed by #HOST')
     result.add_argument('--impure', action='store_true', default=default_impure)
+    result.add_argument('--allow-unfree', action='store_true', help='allow unfree packages during Nix evaluation')
     actions = result.add_subparsers(dest='action', required=True)
     for action in ('install', 'remove'):
         sub = actions.add_parser(action)
@@ -52,9 +53,11 @@ def run(command, **kwargs):
     return subprocess.run(command, check=True, **kwargs)
 
 
-def nix_environment():
+def nix_environment(allow_unfree=False):
     environment = dict(os.environ)
     environment['NIX_CONFIG'] = environment.get('NIX_CONFIG', '') + '\nextra-experimental-features = nix-command flakes\n'
+    if allow_unfree:
+        environment['NIXPKGS_ALLOW_UNFREE'] = '1'
     return environment
 
 
@@ -94,7 +97,7 @@ class Application:
                 command.append('--upgrade')
         if self.args.impure:
             command.append('--impure')
-        run(command, env=nix_environment())
+        run(command, env=nix_environment(self.args.allow_unfree))
 
     def change(self, changes):
         """Validate all edits before writing; restore source files on failure."""
@@ -138,7 +141,11 @@ class Application:
                     source = 'github:soltros/soltros_nixpkgs'
                 else:
                     source = 'nixpkgs'
-                result = json.loads(run([*NIX, 'search', '--json', source, '--', query or '^'], capture_output=True, text=True).stdout)
+                command = [*NIX, 'search', '--json']
+                if self.args.allow_unfree:
+                    command.append('--impure')
+                command += [source, '--', query or '^']
+                result = json.loads(run(command, capture_output=True, text=True, env=nix_environment(self.args.allow_unfree)).stdout)
                 packages = []
                 for attribute, details in sorted(result.items()):
                     details = dict(details)

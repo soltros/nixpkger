@@ -70,6 +70,10 @@ record includes the Nix search metadata available for that package, including
 `attr`, `pname`, `version`, `description`, and optional homepage/source
 position fields. It searches `nixpkgs` by default and also accepts the
 `soltros.` prefix used by the built-in soltros source.
+
+Pass `--allow-unfree` before the command to include unfree packages during
+search and NixOS rebuild evaluation. This uses Nixpkgs' `NIXPKGS_ALLOW_UNFREE`
+setting and `--impure` for the evaluation that needs it.
 An unchanged package list does not trigger a rebuild.
 
 Commands that write files or change the system request sudo. Search, list,
