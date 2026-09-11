@@ -246,7 +246,9 @@ def launch():
     if args.action in MUTATIONS and os.geteuid() != 0:
         try:
             argv = absolute_location_options(sys.argv[1:], args)
-            os.execvp('sudo', ['sudo', '--', sys.executable, str(Path(__file__).resolve().parent.parent / 'main.py'), *argv])
+            # GUI clients authorize sudo before invoking mutations. Never block
+            # waiting for a terminal password that the client cannot display.
+            os.execvp('sudo', ['sudo', '-n', '--', sys.executable, str(Path(__file__).resolve().parent.parent / 'main.py'), *argv])
         except (ConfigError, OSError) as error:
             print(f'nixpkger: {error}', file=sys.stderr)
             return 1
