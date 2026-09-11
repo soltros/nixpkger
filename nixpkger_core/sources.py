@@ -1,6 +1,7 @@
 """Built-in package sources, pinned in the module that uses them."""
 import json
 import re
+from html.parser import HTMLParser
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
@@ -14,6 +15,33 @@ END = '# nixpkger: end soltros source'
 REFERENCE = re.compile(re.escape(SOLTROS) + r'/[0-9a-f]{40}\?narHash=sha256-[A-Za-z0-9%_-]+')
 NIXOS_SEARCH_URL = 'https://search.nixos.org/backend/latest-51-nixos-26.05/_search'
 NIXOS_SEARCH_AUTH = 'Basic YVdWU0FMWHBadjpYOGdQSG56TDUyd0ZFZWt1eHNmUTljU2g='
+
+
+class _DescriptionParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {'p', 'div', 'li', 'br'} and self.parts and not self.parts[-1].endswith('\n'):
+            self.parts.append('\n')
+        if tag == 'li':
+            self.parts.append('• ')
+
+    def handle_endtag(self, tag):
+        if tag in {'p', 'div', 'li'} and self.parts and not self.parts[-1].endswith('\n'):
+            self.parts.append('\n')
+
+    def handle_data(self, data):
+        self.parts.append(data)
+
+
+def clean_description(value):
+    if not value:
+        return ''
+    parser = _DescriptionParser()
+    parser.feed(value)
+    return re.sub(r'\n{3,}', '\n\n', ''.join(parser.parts)).strip()
 
 
 def pinned_reference(run):
@@ -111,7 +139,7 @@ def search_nixos(query, allow_unfree=False, opener=urlopen):
             'pname': item.get('package_pname', ''),
             'version': item.get('package_pversion', ''),
             'description': item.get('package_description', ''),
-            'longDescription': item.get('package_longDescription', ''),
+            'longDescription': clean_description(item.get('package_longDescription', '')),
             'homepage': item.get('package_homepage', []),
             'position': item.get('package_position'),
             'license': ', '.join(x.get('fullName', x.get('shortName', '')) for x in licenses),
