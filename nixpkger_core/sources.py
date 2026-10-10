@@ -160,7 +160,7 @@ def search_options(query, limit=50, opener=urlopen):
                 'fields': ['option_name^9', 'option_description^1.3'],
                 'type': 'best_fields', 'fuzziness': 'AUTO',
             }}],
-            'filter': [{'exists': {'field': 'option_name'}}],
+            'filter': [{'term': {'type': 'option'}}, {'exists': {'field': 'option_name'}}],
         }},
     }
     request = Request(NIXOS_SEARCH_URL, data=json.dumps(payload).encode(),
