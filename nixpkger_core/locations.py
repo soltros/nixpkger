@@ -68,4 +68,6 @@ def absolute_location_options(argv, args):
         else:
             result.append(argument)
             index += 1
+    if args.flake is not None and not any(item == '--flake' or item.startswith('--flake=') for item in argv):
+        result = ['--flake', reference, *result]
     return result
