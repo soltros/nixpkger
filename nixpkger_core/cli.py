@@ -119,34 +119,59 @@ def print_search_results(records, query, limit=50):
 
 
 
-def print_package_info(records, query, limit=50):
-    exact = [item for item in records if item.get('attr') == query or item.get('pname') == query]
-    selected = exact or records[:max(0, limit)]
+def print_package_info(records, query, limit=10):
+    """Show a compact, readable summary rather than raw index fields."""
+    query_lower = query.casefold()
+    exact = [r for r in records if str(r.get('attr') or '').casefold() == query_lower]
+    if not exact:
+        exact = [r for r in records if str(r.get('pname') or '').casefold() == query_lower]
+    if exact:
+        selected = exact[:max(0, limit)]
+    else:
+        # Search ranking is authoritative; don't promote unrelated fuzzy hits.
+        selected = [r for r in records if query_lower in str(r.get('attr') or '').casefold()
+                    or query_lower in str(r.get('pname') or '').casefold()
+                    or query_lower in str(r.get('description') or '').casefold()][:max(0, limit)]
     if not selected:
-        print('No matching packages.')
+        print(f'No directly relevant packages for {query!r}. Try regular search for broader matches.')
         return
-    for item in selected:
+    width = max(48, shutil.get_terminal_size((100, 24)).columns)
+    print(f'Package information for {query!r}  ·  {len(selected)} match(es)')
+    for index, item in enumerate(selected, 1):
         attr = item.get('attr') or query
-        print(f"\\n{attr} — {item.get('description') or 'No description available.'}")
-        for label, key in [('Name', 'pname'), ('Version', 'version'), ('License', 'license'),
+        print(f'\\n{index}. {attr}  {item.get("version") or ""}'.rstrip())
+        print('   ' + '─' * min(65, width - 5))
+        description = item.get('longDescription') or item.get('description') or 'No description available.'
+        description = ' '.join(description.split())
+        for line in textwrap.wrap(description, width=max(36, width - 5))[:6]:
+            print(f'   {line}')
+        for label, key in [('Package', 'pname'), ('License', 'license'),
                            ('Homepage', 'homepage'), ('Source', 'position'),
-                           ('Main program', 'mainProgram'), ('Programs', 'programs'),
-                           ('Platforms', 'platforms')]:
+                           ('Executable', 'mainProgram')]:
             value = item.get(key)
             if value:
-                print(f"{label}: {', '.join(map(str, value)) if isinstance(value, list) else value}")
-        if item.get('longDescription'):
-            print(f"Details: {item['longDescription']}")
-        print(f"Try: nix shell nixpkgs#{attr}")
-        print(f"Install: nixpkger install {attr}")
-
+                value = ', '.join(map(str, value)) if isinstance(value, list) else str(value)
+                for line in textwrap.wrap(f'{label}: {value}', width=max(36, width - 5),
+                                          subsequent_indent=' ' * (len(label) + 2)):
+                    print(f'   {line}')
+        programs = item.get('programs') or []
+        if programs:
+            print(f'   Programs: {", ".join(programs[:6])}' + (f' (+{len(programs)-6} more)' if len(programs)>6 else ''))
+        platforms = item.get('platforms') or []
+        if platforms:
+            relevant = [platform for platform in ('x86_64-linux', 'aarch64-linux') if platform in platforms]
+            print(f'   Linux: {", ".join(relevant) if relevant else "No common Linux architectures listed"}')
+        print(f'   Try: nix shell nixpkgs#{attr}')
+        print(f'   Install: nixpkger install {attr}')
+    if len(records) > len(selected):
+        print('\\nTip: use plain search for a broader results list, or --json for machine-readable data.')
 
 def print_option_results(records):
     if not records:
         print('No matching NixOS options.')
         return
     for item in records:
-        print(f"\\n{item['name']}")
+        print(f"\n{item['name']}")
         if item.get('description'):
             print(f"  {item['description']}")
         for label, key in [('Type', 'type'), ('Default', 'default'),
