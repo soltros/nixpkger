@@ -252,6 +252,37 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(absolute_location_options(['install', 'git'], args),
                          ['--flake', str(self.flake) + '#desktop', 'install', 'git'])
 
+    def test_help_documents_wizard_and_migration(self):
+        output = io.StringIO()
+        with self.assertRaises(SystemExit) as exited, contextlib.redirect_stdout(output):
+            main(['--help'])
+        self.assertEqual(exited.exception.code, 0)
+        self.assertIn('nixpkger config --wizard', output.getvalue())
+        self.assertIn('--migrate-to-package', output.getvalue())
+
+    def test_wizard_configures_saved_flake(self):
+        with patch('sys.stdin.isatty', return_value=True), patch('builtins.input', side_effect=[str(self.flake), 'desktop']), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(['config', '--wizard']), 0)
+        self.assertEqual(read_settings()['flake'], str(self.flake) + '#desktop')
+
+    def test_migration_only_removes_recognized_legacy_launcher(self):
+        home = Path(self.temp.name) / 'home'
+        bin_dir = home / '.local/bin'
+        bin_dir.mkdir(parents=True)
+        launcher = bin_dir / 'nixpkger'
+        with patch('pathlib.Path.home', return_value=home):
+            launcher.write_text('#!/usr/bin/env python3\\nprint("unrelated")\\n')
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(main(['--migrate-to-package']), 1)
+            self.assertTrue(launcher.exists())
+            legacy = str(home / '.local/share/nixpkger')
+            launcher.write_text('#!/usr/bin/env python3\\nimport runpy\\nimport sys\\n'
+                                f'sys.path.insert(0, {legacy!r})\\n'
+                                f'runpy.run_path({legacy + "/nixpkger"!r}, run_name="__main__")\\n')
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(['--migrate-to-package']), 0)
+            self.assertFalse(launcher.exists())
+
     def test_bad_json_and_nonexistent_flake(self):
         settings_path().parent.mkdir(parents=True)
         settings_path().write_text('{bad json')
