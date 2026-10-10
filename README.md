@@ -60,11 +60,13 @@ nixpkger remove git
 nixpkger search firefox
 nixpkger search --limit 20 firefox
 nixpkger search --json firefox
+nixpkger search fresh-editor --info
+nixpkger search freshrss --options
 nixpkger list
 nixpkger self-update
 ```
 
-`list` shows the packages declared in the selected module. Package names are
+`search --info` prints the matching package's version, description, license, homepage, source location, provided programs, and sample Nix usage. `search --options` looks for matching NixOS module options and prints their types, defaults, examples, and declarations when indexed. Both accept `--json` for structured output.\n\n`list` shows the packages declared in the selected module. Package names are
 Nix attributes, such as `firefox` or `python3Packages.pip`.
 
 Regular nixpkgs searches use the Elasticsearch service behind
