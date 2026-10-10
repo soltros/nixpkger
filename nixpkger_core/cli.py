@@ -10,12 +10,13 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from urllib.parse import quote
 
 from .config import (ConfigError, TEMPLATE, atomic_write, backup, category_path,
                      edit_import, edit_packages, packages)
 from .locations import absolute_location_options, find_module, resolve_locations
 from .settings import read_settings, write_settings, normalize_flake
-from .sources import (NIX, enable_source, search_nixos, search_soltros,
+from .sources import (NIX, enable_source, search_nixos, search_soltros, search_options,
                        current_reference)
 from .update import self_update
 from . import __version__
@@ -46,6 +47,9 @@ def parser(default_flake=None, default_impure=False):
         sub.add_argument('packages', nargs='+')
     search = actions.add_parser('search')
     search.add_argument('--json', action='store_true', help='print structured package metadata as JSON')
+    selection = search.add_mutually_exclusive_group()
+    selection.add_argument('--info', action='store_true', help='show detailed package metadata and usage')
+    selection.add_argument('--options', action='store_true', help='search NixOS module options instead of packages')
     search.add_argument('--limit', type=int, default=50, help='maximum human-readable results (default: 50)')
     search.add_argument('query')
     actions.add_parser('list')
@@ -110,6 +114,46 @@ def print_search_results(records, query, limit=50):
             print(f'       {" " * attr_width}  {line}')
     if limit < total:
         print(f'\nShowing the first {limit} results. Use --limit N to change this.')
+
+
+
+def print_package_info(records, query, limit=50):
+    exact = [item for item in records if item.get('attr') == query or item.get('pname') == query]
+    selected = exact or records[:max(0, limit)]
+    if not selected:
+        print('No matching packages.')
+        return
+    for item in selected:
+        attr = item.get('attr') or query
+        print(f"\\n{attr} — {item.get('description') or 'No description available.'}")
+        for label, key in [('Name', 'pname'), ('Version', 'version'), ('License', 'license'),
+                           ('Homepage', 'homepage'), ('Source', 'position'),
+                           ('Main program', 'mainProgram'), ('Programs', 'programs'),
+                           ('Platforms', 'platforms')]:
+            value = item.get(key)
+            if value:
+                print(f"{label}: {', '.join(map(str, value)) if isinstance(value, list) else value}")
+        if item.get('longDescription'):
+            print(f"Details: {item['longDescription']}")
+        print(f"Try: nix shell nixpkgs#{attr}")
+        print(f"Install: nixpkger install {attr}")
+
+
+def print_option_results(records):
+    if not records:
+        print('No matching NixOS options.')
+        return
+    for item in records:
+        print(f"\\n{item['name']}")
+        if item.get('description'):
+            print(f"  {item['description']}")
+        for label, key in [('Type', 'type'), ('Default', 'default'),
+                           ('Example', 'example'), ('Declared in', 'declarations')]:
+            value = item.get(key)
+            if value is not None and value != '' and value != []:
+                rendered = ', '.join(map(str, value)) if isinstance(value, list) else str(value)
+                print(f'  {label}: {rendered}')
+        print(f"  Docs: https://search.nixos.org/options?query={quote(item['name'])}")
 
 
 @contextmanager
@@ -180,11 +224,20 @@ class Application:
     def execute(self):
         action = self.args.action
         if action == 'search':
+            if self.args.options:
+                results = search_options(self.args.query, self.args.limit)
+                if self.args.json:
+                    print(json.dumps(results))
+                else:
+                    print_option_results(results)
+                return
             if not self.args.query.startswith('soltros.'):
                 try:
                     records = search_nixos(self.args.query, self.args.allow_unfree)
                     if self.args.json:
                         print(json.dumps(records))
+                    elif self.args.info:
+                        print_package_info(records, self.args.query, self.args.limit)
                     else:
                         print_search_results(records, self.args.query, self.args.limit)
                     return
