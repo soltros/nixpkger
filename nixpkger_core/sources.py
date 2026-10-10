@@ -148,3 +148,37 @@ def search_nixos(query, allow_unfree=False, opener=urlopen):
             'mainProgram': item.get('package_mainProgram', ''),
         })
     return records
+
+
+def search_options(query, limit=50, opener=urlopen):
+    """Query the NixOS options records in the existing search backend."""
+    payload = {
+        'from': 0, 'size': max(1, min(limit, 100)),
+        'query': {'bool': {
+            'must': [{'multi_match': {
+                'query': query.strip(),
+                'fields': ['option_name^9', 'option_description^1.3'],
+                'type': 'best_fields', 'fuzziness': 'AUTO',
+            }}],
+            'filter': [{'exists': {'field': 'option_name'}}],
+        }},
+    }
+    request = Request(NIXOS_SEARCH_URL, data=json.dumps(payload).encode(),
+                      headers={'Content-Type': 'application/json',
+                               'Authorization': NIXOS_SEARCH_AUTH}, method='POST')
+    with opener(request, timeout=12) as response:
+        document = json.loads(response.read().decode('utf-8'))
+    records = []
+    for hit in document.get('hits', {}).get('hits', []):
+        source = hit.get('_source', {})
+        if not source.get('option_name'):
+            continue
+        records.append({
+            'name': source['option_name'],
+            'description': clean_description(source.get('option_description', '')),
+            'type': source.get('option_type'),
+            'default': source.get('option_default'),
+            'example': source.get('option_example'),
+            'declarations': source.get('option_declarations', []),
+        })
+    return records
