@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import subprocess
 
 from .config import ConfigError
 
@@ -19,6 +20,8 @@ def read_settings():
         raise ConfigError(f'Cannot read {path}: {error}') from error
     if not isinstance(obj, dict) or ('flake' in obj and not isinstance(obj['flake'], str)):
         raise ConfigError(f'Invalid Nixpkger JSON configuration: {path}')
+    if 'branch' in obj and not isinstance(obj['branch'], str):
+        raise ConfigError('Configured Git branch must be a string.')
     return obj
 
 def normalize_flake(raw):
@@ -45,3 +48,22 @@ def write_settings(obj):
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def git_branch(directory):
+    try:
+        result = subprocess.run(['git', '-C', str(directory), 'symbolic-ref', '--quiet', '--short', 'HEAD'],
+                                check=True, capture_output=True, text=True)
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ConfigError(f'Cannot determine active Git branch in {directory}: {error}') from error
+    branch = result.stdout.strip()
+    if not branch:
+        raise ConfigError(f'No active Git branch in {directory}.')
+    return branch
+
+
+def verify_branch(directory, expected):
+    actual = git_branch(directory)
+    if actual != expected:
+        raise ConfigError(f'Git branch mismatch in {directory}: configured {expected!r}, currently {actual!r}. '
+                          'Switch branches deliberately, then reconfigure Nixpkger if needed.')
