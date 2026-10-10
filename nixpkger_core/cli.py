@@ -122,10 +122,10 @@ def print_search_results(records, query, limit=50):
 def term_colors():
     active = sys.stdout.isatty() and 'NO_COLOR' not in os.environ and os.environ.get('TERM') != 'dumb'
     return {key: (value if active else '') for key, value in {
-        'name': '\\033[1;36m', 'label': '\\033[1;34m',
-        'value': '\\033[1;32m', 'version': '\\033[1;35m',
-        'command': '\\033[33m', 'url': '\\033[4;36m',
-        'dim': '\\033[2m', 'reset': '\\033[0m'}.items()}
+        'name': '\033[1;36m', 'label': '\033[1;34m',
+        'value': '\033[1;32m', 'version': '\033[1;35m',
+        'command': '\033[33m', 'url': '\033[4;36m',
+        'dim': '\033[2m', 'reset': '\033[0m'}.items()}
 
 
 def print_package_info(records, query, limit=10):
