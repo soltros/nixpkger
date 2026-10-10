@@ -14,6 +14,7 @@ import textwrap
 from .config import (ConfigError, TEMPLATE, atomic_write, backup, category_path,
                      edit_import, edit_packages, packages)
 from .locations import absolute_location_options, find_module, resolve_locations
+from .settings import read_settings, write_settings, normalize_flake
 from .sources import (NIX, enable_source, search_nixos, search_soltros,
                        current_reference)
 from .update import self_update
@@ -43,6 +44,9 @@ def parser(default_flake=None, default_impure=False):
     search.add_argument('query')
     actions.add_parser('list')
     actions.add_parser('self-update', help='check for and install the latest nixpkger release')
+    configuration = actions.add_parser('config', help='show or change the saved default flake')
+    configuration.add_argument('--set-flake', metavar='PATH[#HOST]', help='save the default local flake')
+    configuration.add_argument('--unset-flake', action='store_true', help='remove the saved default flake')
     actions.add_parser('list-categories').add_argument('category')
     actions.add_parser('add-category').add_argument('category')
     update = actions.add_parser('update')
@@ -269,9 +273,23 @@ class Application:
 def main(argv=None, *, default_flake=None, default_impure=False):
     args = parser(default_flake, default_impure).parse_args(argv)
     try:
+        if args.action == 'config':
+            if args.set_flake and args.unset_flake:
+                raise ConfigError('Choose --set-flake or --unset-flake, not both.')
+            settings = read_settings()
+            if args.set_flake:
+                settings['flake'] = normalize_flake(args.set_flake)
+                write_settings(settings)
+            elif args.unset_flake:
+                settings.pop('flake', None)
+                write_settings(settings)
+            print(json.dumps(settings, indent=2, sort_keys=True))
+            return 0
         if args.action == 'self-update':
             self_update(__version__)
             return 0
+        if args.flake is None:
+            args.flake = read_settings().get('flake')
         app = Application(args)
         if args.action in MUTATIONS:
             with locked(app.root):
@@ -294,6 +312,8 @@ def launch():
     args = parser().parse_args()
     if args.action in MUTATIONS and os.geteuid() != 0:
         try:
+            if args.flake is None:
+                args.flake = read_settings().get('flake')
             argv = absolute_location_options(sys.argv[1:], args)
             # GUI clients authorize sudo before invoking mutations. Never block
             # waiting for a terminal password that the client cannot display.
