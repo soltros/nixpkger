@@ -32,7 +32,7 @@ Set `NIXPKGER_PREFIX` to use a different installation prefix. The installer
 uses the checkout or extracted archive and does not change your Nix profile.
 You can also run `./nixpkger` directly from the source directory.
 
-## Set up a package module
+## Migrate to the Nix package\n\nBefore switching from the legacy installer to the optional `soltros_nixpkgs` package, run:\n\n```sh\nnixpkger --migrate-to-package\n```\n\nThis removes only the recognized legacy `~/.local/bin/nixpkger` launcher, and does not remove JSON configuration, modules, backups, or other application data. Unrecognized launchers are left untouched. Then install the `nixpkger` package through `soltros_nixpkgs`.\n\n## Set up a package module
 
 If you already have `apps.nix`, keep it. Otherwise, create a module like this:
 
@@ -126,7 +126,7 @@ Studio's desktop integration, follow the module instructions in its repository.
 
 ## Persistent JSON flake configuration
 
-Set your default flake once:
+For guided setup, run `nixpkger config --wizard` (also shown in `nixpkger --help`).\nThe wizard prompts for your local flake path and optional host.\n\nSet your default flake noninteractively:
 
 ```sh
 nixpkger config --set-flake ~/nixos-config#desktop
