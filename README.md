@@ -124,6 +124,18 @@ set containing `pkgs`, as shown above.
 Installing a package does not enable its companion NixOS services. For Pantheon
 Studio's desktop integration, follow the module instructions in its repository.
 
+## Persistent JSON flake configuration
+
+Set your default flake once:
+
+```sh
+nixpkger config --set-flake ~/nixos-config#desktop
+nixpkger config
+nixpkger config --unset-flake
+```
+
+The default is stored in `~/.config/nixpkger/config.json` (or `$XDG_CONFIG_HOME/nixpkger/config.json`) as JSON, for example `{"flake": "/home/user/nixos-config#desktop"}`. Nixpkger uses it for subsequent commands without `--flake`, including operations run with sudo. An explicit `--flake` always overrides the stored default. The config command runs without sudo.
+
 ## Flakes and file locations
 
 Put global options before the command:
