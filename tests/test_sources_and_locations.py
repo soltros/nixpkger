@@ -283,6 +283,33 @@ class SettingsTests(unittest.TestCase):
                 self.assertEqual(main(['--migrate-to-package']), 0)
             self.assertFalse(launcher.exists())
 
+
+    @patch('nixpkger_core.cli.search_nixos')
+    def test_search_info(self, search):
+        search.return_value = [{'attr': 'fresh-editor', 'pname': 'fresh', 'version': '0.3.6',
+                                'description': 'Terminal-based editor', 'license': 'GPL-2.0-only',
+                                'homepage': ['https://example.org'], 'programs': ['fresh']}]
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(['search', 'fresh-editor', '--info']), 0)
+        self.assertIn('Version: 0.3.6', output.getvalue())
+        self.assertIn('Install: nixpkger install fresh-editor', output.getvalue())
+
+    @patch('nixpkger_core.cli.search_options')
+    def test_search_options_and_json(self, search):
+        search.return_value = [{'name': 'services.freshrss.enable', 'type': 'boolean',
+                                'default': False, 'description': 'Enable FreshRSS',
+                                'example': True, 'declarations': ['nixos/modules/services/web-apps/freshrss.nix']}]
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(['search', 'freshrss', '--options']), 0)
+        self.assertIn('services.freshrss.enable', output.getvalue())
+        self.assertIn('Default: False', output.getvalue())
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(['search', 'freshrss', '--options', '--json']), 0)
+        self.assertEqual(json.loads(output.getvalue()), search.return_value)
+
     def test_bad_json_and_nonexistent_flake(self):
         settings_path().parent.mkdir(parents=True)
         settings_path().write_text('{bad json')
