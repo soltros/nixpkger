@@ -119,8 +119,18 @@ def print_search_results(records, query, limit=50):
 
 
 
+def term_colors():
+    active = sys.stdout.isatty() and 'NO_COLOR' not in os.environ and os.environ.get('TERM') != 'dumb'
+    return {key: (value if active else '') for key, value in {
+        'name': '\\033[1;36m', 'label': '\\033[1;34m',
+        'value': '\\033[1;32m', 'version': '\\033[1;35m',
+        'command': '\\033[33m', 'url': '\\033[4;36m',
+        'dim': '\\033[2m', 'reset': '\\033[0m'}.items()}
+
+
 def print_package_info(records, query, limit=10):
     """Show a compact, readable summary rather than raw index fields."""
+    c = term_colors()
     query_lower = query.casefold()
     exact = [r for r in records if str(r.get('attr') or '').casefold() == query_lower]
     if not exact:
@@ -133,11 +143,11 @@ def print_package_info(records, query, limit=10):
         print(f'No directly relevant packages for {query!r}. Try regular search for broader matches.')
         return
     width = max(48, shutil.get_terminal_size((100, 24)).columns)
-    print(f'Package information for {query!r}  ·  {len(selected)} match(es)')
+    print(f\"{c['name']}Package information{c['reset']} for {query!r}  ·  {len(selected)} match(es)\")
     for index, item in enumerate(selected, 1):
         attr = item.get('attr') or query
-        print(f'\\n{index}. {attr}  {item.get("version") or ""}'.rstrip())
-        print('   ' + '─' * min(65, width - 5))
+        print(f"\\n{c['name']}{index}. {attr}{c['reset']}  {c['version']}{item.get('version') or ''}{c['reset']}")
+        print(f\"{c['dim']}   {'─' * min(65, width - 5)}{c['reset']}\")
         description = item.get('longDescription') or item.get('description') or 'No description available.'
         description = ' '.join(description.split())
         for line in textwrap.wrap(description, width=max(36, width - 5))[:6]:
@@ -150,7 +160,8 @@ def print_package_info(records, query, limit=10):
                 value = ', '.join(map(str, value)) if isinstance(value, list) else str(value)
                 for line in textwrap.wrap(f'{label}: {value}', width=max(36, width - 5),
                                           subsequent_indent=' ' * (len(label) + 2)):
-                    print(f'   {line}')
+                    color = c['url'] if key == 'homepage' else c['value']
+                    print(f\"   {c['label']}{line.split(': ', 1)[0]}:{c['reset']} {color}{line.split(': ', 1)[-1]}{c['reset']}\" if ': ' in line else f'   {color}{line}{c[\"reset\"]}')
         programs = item.get('programs') or []
         if programs:
             print(f'   Programs: {", ".join(programs[:6])}' + (f' (+{len(programs)-6} more)' if len(programs)>6 else ''))
