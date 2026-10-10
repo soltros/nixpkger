@@ -125,13 +125,10 @@ def print_package_info(records, query, limit=10):
     exact = [r for r in records if str(r.get('attr') or '').casefold() == query_lower]
     if not exact:
         exact = [r for r in records if str(r.get('pname') or '').casefold() == query_lower]
-    if exact:
-        selected = exact[:max(0, limit)]
-    else:
-        # Search ranking is authoritative; don't promote unrelated fuzzy hits.
-        selected = [r for r in records if query_lower in str(r.get('attr') or '').casefold()
-                    or query_lower in str(r.get('pname') or '').casefold()
-                    or query_lower in str(r.get('description') or '').casefold()][:max(0, limit)]
+    relevant = [r for r in records if query_lower in str(r.get('attr') or '').casefold()
+                or query_lower in str(r.get('pname') or '').casefold()
+                or query_lower in str(r.get('description') or '').casefold()]
+    selected = (exact + [r for r in relevant if r not in exact])[:max(0, min(limit, 10))]
     if not selected:
         print(f'No directly relevant packages for {query!r}. Try regular search for broader matches.')
         return
@@ -262,7 +259,7 @@ class Application:
                 try:
                     records = search_nixos(self.args.query, self.args.allow_unfree)
                     if self.args.json:
-                        print(json.dumps(records))
+                        print(json.dumps(records, indent=2 if self.args.info else None))
                     elif self.args.info:
                         print_package_info(records, self.args.query, self.args.limit)
                     else:
