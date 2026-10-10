@@ -146,7 +146,7 @@ def print_package_info(records, query, limit=10):
     print(f"{c['name']}Package information{c['reset']} for {query!r}  ·  {len(selected)} match(es)")
     for index, item in enumerate(selected, 1):
         attr = item.get('attr') or query
-        print(f"\\n{c['name']}{index}. {attr}{c['reset']}  {c['version']}{item.get('version') or ''}{c['reset']}")
+        print(f"\n{c['name']}{index}. {attr}{c['reset']}  {c['version']}{item.get('version') or ''}{c['reset']}")
         print(f"{c['dim']}   {'─' * min(65, width - 5)}{c['reset']}")
         description = item.get('longDescription') or item.get('description') or 'No description available.'
         description = ' '.join(description.split())
@@ -177,7 +177,7 @@ def print_package_info(records, query, limit=10):
         print(f"   {c['label']}Try:{c['reset']} {c['command']}nix shell nixpkgs#{attr}{c['reset']}")
         print(f"   {c['label']}Install:{c['reset']} {c['command']}nixpkger install {attr}{c['reset']}")
     if len(records) > len(selected):
-        print('\\nTip: use plain search for a broader results list, or --json for machine-readable data.')
+        print('\nTip: use plain search for a broader results list, or --json for machine-readable data.')
 
 def print_option_results(records, query=None):
     c = term_colors()
