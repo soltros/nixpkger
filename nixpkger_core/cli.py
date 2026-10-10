@@ -143,11 +143,11 @@ def print_package_info(records, query, limit=10):
         print(f'No directly relevant packages for {query!r}. Try regular search for broader matches.')
         return
     width = max(48, shutil.get_terminal_size((100, 24)).columns)
-    print(f"{c['name']}Package information{c['reset']} for {query!r}  ·  {len(selected)} match(es)\")
+    print(f"{c['name']}Package information{c['reset']} for {query!r}  ·  {len(selected)} match(es)")
     for index, item in enumerate(selected, 1):
         attr = item.get('attr') or query
         print(f"\\n{c['name']}{index}. {attr}{c['reset']}  {c['version']}{item.get('version') or ''}{c['reset']}")
-        print(f"{c['dim']}   {'─' * min(65, width - 5)}{c['reset']}\")
+        print(f"{c['dim']}   {'─' * min(65, width - 5)}{c['reset']}")
         description = item.get('longDescription') or item.get('description') or 'No description available.'
         description = ' '.join(description.split())
         for line in textwrap.wrap(description, width=max(36, width - 5))[:6]:
