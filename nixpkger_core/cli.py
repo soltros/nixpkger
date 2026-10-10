@@ -174,21 +174,29 @@ def print_package_info(records, query, limit=10):
     if len(records) > len(selected):
         print('\\nTip: use plain search for a broader results list, or --json for machine-readable data.')
 
-def print_option_results(records):
+def print_option_results(records, query=None):
+    c = term_colors()
+    term = (query or '').casefold()
+    if term:
+        records = [r for r in records if term in str(r.get('name', '')).casefold()]
     if not records:
-        print('No matching NixOS options.')
+        print('No directly matching NixOS options.')
         return
-    for item in records:
-        print(f"\n{item['name']}")
+    print(f"{c['name']}NixOS options{c['reset']} · {len(records)} results")
+    width = max(48, shutil.get_terminal_size((100, 24)).columns)
+    for number, item in enumerate(records, 1):
+        print(f"\n{c['name']}{number}. {item['name']}{c['reset']}")
         if item.get('description'):
-            print(f"  {item['description']}")
+            for line in textwrap.wrap(' '.join(item['description'].split()), width=width - 4)[:6]:
+                print('   ' + line)
         for label, key in [('Type', 'type'), ('Default', 'default'),
                            ('Example', 'example'), ('Declared in', 'declarations')]:
             value = item.get(key)
             if value is not None and value != '' and value != []:
                 rendered = ', '.join(map(str, value)) if isinstance(value, list) else str(value)
-                print(f'  {label}: {rendered}')
-        print(f"  Docs: https://search.nixos.org/options?query={quote(item['name'])}")
+                color = c['command'] if key in ('default', 'example') else c['value']
+                print(f"   {c['label']}{label}:{c['reset']} {color}{rendered}{c['reset']}")
+        print(f"   {c['label']}Docs:{c['reset']} {c['url']}https://search.nixos.org/options?query={quote(item['name'])}{c['reset']}")
 
 
 @contextmanager
@@ -264,7 +272,7 @@ class Application:
                 if self.args.json:
                     print(json.dumps(results))
                 else:
-                    print_option_results(results)
+                    print_option_results(results, self.args.query)
                 return
             if not self.args.query.startswith('soltros.'):
                 try:
