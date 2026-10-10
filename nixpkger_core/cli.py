@@ -15,7 +15,7 @@ from urllib.parse import quote
 from .config import (ConfigError, TEMPLATE, atomic_write, backup, category_path,
                      edit_import, edit_packages, packages)
 from .locations import absolute_location_options, find_module, resolve_locations
-from .settings import read_settings, write_settings, normalize_flake
+from .settings import read_settings, write_settings, normalize_flake, git_branch, verify_branch
 from .sources import (NIX, enable_source, search_nixos, search_soltros, search_options,
                        current_reference)
 from .update import self_update
@@ -33,6 +33,7 @@ def parser(default_flake=None, default_impure=False):
                      'Noninteractive setup: nixpkger config --set-flake ~/nixos-config#HOST\\n'
                      'Package migration: nixpkger --migrate-to-package')
     result.formatter_class = argparse.RawDescriptionHelpFormatter
+    result.add_argument('--expected-branch', help=argparse.SUPPRESS)
     result.add_argument('--config-dir', type=Path, help='tree to search for NixOS modules (defaults to the flake directory or /etc/nixos)')
     result.add_argument('--apps-file', type=Path, help='explicit package module, absolute or relative to the configuration directory')
     result.add_argument('--module-file', type=Path, help='module whose imports receive categories (defaults to discovered configuration.nix)')
@@ -55,6 +56,7 @@ def parser(default_flake=None, default_impure=False):
     actions.add_parser('list')
     actions.add_parser('self-update', help='check for and install the latest nixpkger release')
     configuration = actions.add_parser('config', help='show, configure, or launch the flake setup wizard (config --wizard)')
+    configuration.add_argument('--branch', help='expected Git branch for the configured flake')
     configuration.add_argument('--wizard', action='store_true', help='interactive flake path and host setup')
     configuration.add_argument('--set-flake', metavar='PATH[#HOST]', help='save the default local flake')
     configuration.add_argument('--unset-flake', action='store_true', help='remove the saved default flake')
@@ -361,6 +363,12 @@ def configuration_wizard(settings):
     if not separator:
         host = input('NixOS host name (optional): ').strip()
     settings['flake'] = normalize_flake(path + ('#' + host if host else ''))
+    directory = Path(settings['flake'].split('#', 1)[0])
+    detected = git_branch(directory)
+    branch = input(f'Expected Git branch [{detected}]: ').strip() or detected
+    if branch != detected:
+        raise ConfigError(f'Cannot save branch {branch!r}: checkout is currently on {detected!r}.')
+    settings['branch'] = branch
     write_settings(settings)
     print('Saved default flake to JSON configuration:')
     print(json.dumps(settings, indent=2, sort_keys=True))
@@ -385,8 +393,13 @@ def main(argv=None, *, default_flake=None, default_impure=False):
                 return 0
             if args.set_flake:
                 settings['flake'] = normalize_flake(args.set_flake)
+                actual = git_branch(Path(settings['flake'].split('#', 1)[0]))
+                if args.branch and args.branch != actual:
+                    raise ConfigError(f'Configured branch {args.branch!r} differs from current checkout {actual!r}.')
+                settings['branch'] = args.branch or actual
                 write_settings(settings)
             elif args.unset_flake:
+                settings.pop('branch', None)
                 settings.pop('flake', None)
                 write_settings(settings)
             print(json.dumps(settings, indent=2, sort_keys=True))
@@ -394,8 +407,16 @@ def main(argv=None, *, default_flake=None, default_impure=False):
         if args.action == 'self-update':
             self_update(__version__)
             return 0
+        settings = read_settings()
         if args.flake is None:
-            args.flake = read_settings().get('flake')
+            args.flake = settings.get('flake')
+        if args.action in MUTATIONS and args.action != 'gc':
+            if not args.flake or '#' not in args.flake or not args.flake.partition('#')[2]:
+                raise ConfigError('A flake and #HOST are required for changes. Run nixpkger config --wizard.')
+            expected = args.expected_branch or settings.get('branch')
+            if not expected:
+                raise ConfigError('No saved Git branch. Re-run nixpkger config --wizard before making changes.')
+            verify_branch(Path(args.flake.split('#', 1)[0]), expected)
         app = Application(args)
         if args.action in MUTATIONS:
             with locked(app.root):
@@ -418,9 +439,20 @@ def launch():
     args = parser().parse_args()
     if args.action in MUTATIONS and os.geteuid() != 0:
         try:
+            settings = read_settings()
             if args.flake is None:
-                args.flake = read_settings().get('flake')
+                args.flake = settings.get('flake')
+            if args.action != 'gc':
+                if not args.flake or '#' not in args.flake or not args.flake.partition('#')[2]:
+                    raise ConfigError('Configure a flake with #HOST before mutating the system.')
+                expected = settings.get('branch')
+                if not expected:
+                    raise ConfigError('Configure a Git branch using nixpkger config --wizard.')
+                verify_branch(Path(args.flake.split('#', 1)[0]), expected)
+                args.expected_branch = expected
             argv = absolute_location_options(sys.argv[1:], args)
+            if args.expected_branch:
+                argv = ['--expected-branch', args.expected_branch, *argv]
             # GUI clients authorize sudo before invoking mutations. Never block
             # waiting for a terminal password that the client cannot display.
             os.execvp('sudo', ['sudo', '-n', '--', sys.executable, str(Path(__file__).resolve().parent.parent / 'main.py'), *argv])
