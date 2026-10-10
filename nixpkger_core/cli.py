@@ -26,6 +26,12 @@ MUTATIONS = {'install', 'remove', 'add-category', 'update', 'snapshot', 'backup'
 def parser(default_flake=None, default_impure=False):
     result = argparse.ArgumentParser(description='Manage packages declared in NixOS modules.', allow_abbrev=False)
     result.add_argument('--version', action='version', version=f'nixpkger {__version__}')
+    result.add_argument('--migrate-to-package', action='store_true',
+                        help='remove the legacy ~/.local/bin/nixpkger launcher (keeps JSON settings)')
+    result.epilog = ('Flake setup wizard: nixpkger config --wizard\\n'
+                     'Noninteractive setup: nixpkger config --set-flake ~/nixos-config#HOST\\n'
+                     'Package migration: nixpkger --migrate-to-package')
+    result.formatter_class = argparse.RawDescriptionHelpFormatter
     result.add_argument('--config-dir', type=Path, help='tree to search for NixOS modules (defaults to the flake directory or /etc/nixos)')
     result.add_argument('--apps-file', type=Path, help='explicit package module, absolute or relative to the configuration directory')
     result.add_argument('--module-file', type=Path, help='module whose imports receive categories (defaults to discovered configuration.nix)')
@@ -33,7 +39,7 @@ def parser(default_flake=None, default_impure=False):
                         help='local flake directory or flake.nix, optionally followed by #HOST')
     result.add_argument('--impure', action='store_true', default=default_impure)
     result.add_argument('--allow-unfree', action='store_true', help='allow unfree packages during Nix evaluation')
-    actions = result.add_subparsers(dest='action', required=True)
+    actions = result.add_subparsers(dest='action')
     for action in ('install', 'remove'):
         sub = actions.add_parser(action)
         sub.add_argument('--category')
@@ -44,7 +50,8 @@ def parser(default_flake=None, default_impure=False):
     search.add_argument('query')
     actions.add_parser('list')
     actions.add_parser('self-update', help='check for and install the latest nixpkger release')
-    configuration = actions.add_parser('config', help='show or change the saved default flake')
+    configuration = actions.add_parser('config', help='show, configure, or launch the flake setup wizard (config --wizard)')
+    configuration.add_argument('--wizard', action='store_true', help='interactive flake path and host setup')
     configuration.add_argument('--set-flake', metavar='PATH[#HOST]', help='save the default local flake')
     configuration.add_argument('--unset-flake', action='store_true', help='remove the saved default flake')
     actions.add_parser('list-categories').add_argument('category')
@@ -270,13 +277,59 @@ class Application:
                 self.rebuild(upgrade=True)
 
 
+def migrate_to_package():
+    """Remove only a launcher produced by the legacy installer, never arbitrary files."""
+    launcher = Path.home() / '.local' / 'bin' / 'nixpkger'
+    if not launcher.exists() and not launcher.is_symlink():
+        print(f'Legacy launcher not found: {launcher}')
+        return
+    if launcher.is_symlink() or not launcher.is_file():
+        raise ConfigError(f'Refusing to remove unexpected launcher: {launcher}')
+    source = launcher.read_text(encoding='utf-8')
+    legacy_dir = str(Path.home() / '.local' / 'share' / 'nixpkger')
+    if not (source.startswith('#!/usr/bin/env python3\\nimport runpy\\nimport sys\\n')
+            and 'runpy.run_path(' in source and legacy_dir in source
+            and 'nixpkger' in source):
+        raise ConfigError(f'Refusing to remove launcher not recognized as a legacy Nixpkger install: {launcher}')
+    launcher.unlink()
+    print(f'Removed legacy launcher: {launcher}')
+    print('JSON settings and application data were preserved.')
+    print('Install nixpkger through soltros_nixpkgs and refresh your shell command cache if needed.')
+
+
+def configuration_wizard(settings):
+    if not sys.stdin.isatty():
+        raise ConfigError('The configuration wizard requires an interactive terminal. Use config --set-flake PATH[#HOST].')
+    current = settings.get('flake', '')
+    answer = input(f'Flake directory or flake.nix [{current}]: ').strip() or current
+    if not answer:
+        raise ConfigError('A flake directory is required.')
+    path, separator, host = answer.partition('#')
+    if not separator:
+        host = input('NixOS host name (optional): ').strip()
+    settings['flake'] = normalize_flake(path + ('#' + host if host else ''))
+    write_settings(settings)
+    print('Saved default flake to JSON configuration:')
+    print(json.dumps(settings, indent=2, sort_keys=True))
+
+
 def main(argv=None, *, default_flake=None, default_impure=False):
     args = parser(default_flake, default_impure).parse_args(argv)
     try:
+        if args.migrate_to_package:
+            if args.action is not None:
+                raise ConfigError('--migrate-to-package cannot be combined with a command.')
+            migrate_to_package()
+            return 0
+        if args.action is None:
+            parser(default_flake, default_impure).error('a command is required')
         if args.action == 'config':
-            if args.set_flake and args.unset_flake:
-                raise ConfigError('Choose --set-flake or --unset-flake, not both.')
+            if sum(bool(item) for item in (args.set_flake, args.unset_flake, args.wizard)) > 1:
+                raise ConfigError('Choose only one of --wizard, --set-flake, or --unset-flake.')
             settings = read_settings()
+            if args.wizard:
+                configuration_wizard(settings)
+                return 0
             if args.set_flake:
                 settings['flake'] = normalize_flake(args.set_flake)
                 write_settings(settings)
