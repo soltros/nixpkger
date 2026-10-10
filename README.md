@@ -128,7 +128,7 @@ Studio's desktop integration, follow the module instructions in its repository.
 
 ## Persistent JSON flake configuration
 
-For guided setup, run `nixpkger config --wizard` (also shown in `nixpkger --help`).\nThe wizard prompts for your local flake path and optional host.\n\nSet your default flake noninteractively:
+For guided setup, run `nixpkger config --wizard` (also shown in `nixpkger --help`).\nThe wizard prompts for your local flake path, host, and the Git branch to protect. Mutating commands require a saved branch and explicit #HOST, and refuse to rebuild if the checkout branch differs. The wizard never switches Git branches.\n\nSet your default flake noninteractively:
 
 ```sh
 nixpkger config --set-flake ~/nixos-config#desktop
@@ -136,7 +136,7 @@ nixpkger config
 nixpkger config --unset-flake
 ```
 
-The default is stored in `~/.config/nixpkger/config.json` (or `$XDG_CONFIG_HOME/nixpkger/config.json`) as JSON, for example `{"flake": "/home/user/nixos-config#desktop"}`. Nixpkger uses it for subsequent commands without `--flake`, including operations run with sudo. An explicit `--flake` always overrides the stored default. The config command runs without sudo.
+The default is stored in `~/.config/nixpkger/config.json` (or `$XDG_CONFIG_HOME/nixpkger/config.json`) as JSON, for example `{"flake": "/home/user/nixos-config#desktop"}`. Nixpkger uses it for subsequent commands without `--flake`, including operations run with sudo. An explicit `--flake` always overrides the stored default. The config command runs without sudo. `config --set-flake` also detects and stores the current Git branch (use `--branch NAME` to assert which branch is expected). Previously saved configurations must be set again so that the branch is recorded.
 
 ## Flakes and file locations
 
