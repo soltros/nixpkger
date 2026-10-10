@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 from nixpkger_core.cli import Application, main, parser
 from nixpkger_core.config import ConfigError, TEMPLATE, edit_packages, packages
 from nixpkger_core.locations import absolute_location_options, find_module
+from nixpkger_core.settings import read_settings, settings_path
 from nixpkger_core.sources import (BEGIN, END, SOLTROS, current_reference,
                                   enable_source, pinned_reference, source_block)
 
@@ -203,6 +204,63 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(self.invoke('--config-dir', str(external), 'install', 'hello'), 0)
         self.assertEqual(packages((external / 'apps.nix').read_text()), ['hello'])
         self.assertEqual(self.apps.read_text(), TEMPLATE)
+
+
+
+class SettingsTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.env = patch.dict(os.environ, {'XDG_CONFIG_HOME': self.temp.name})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.flake = Path(self.temp.name) / 'system'
+        self.flake.mkdir()
+        (self.flake / 'flake.nix').write_text('{}')
+        (self.flake / 'apps.nix').write_text(TEMPLATE)
+
+    def test_set_show_unset_json(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(['config', '--set-flake', str(self.flake) + '#desktop']), 0)
+        self.assertEqual(json.loads(settings_path().read_text())['flake'], str(self.flake) + '#desktop')
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(['config']), 0)
+        self.assertEqual(json.loads(output.getvalue())['flake'], str(self.flake) + '#desktop')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(['config', '--unset-flake']), 0)
+        self.assertNotIn('flake', read_settings())
+
+    def test_stored_default_and_explicit_override(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(['config', '--set-flake', str(self.flake) + '#desktop']), 0)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(['list']), 0)
+        self.assertIn('No packages declared.', output.getvalue())
+        other = Path(self.temp.name) / 'other'
+        other.mkdir()
+        (other / 'flake.nix').write_text('{}')
+        (other / 'apps.nix').write_text(edit_packages(TEMPLATE, ['git']))
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(['--flake', str(other) + '#other', 'list']), 0)
+        self.assertTrue(output.getvalue().endswith('git\\n'))
+
+    def test_sudo_handoff_includes_configured_flake(self):
+        args = parser().parse_args(['install', 'git'])
+        args.flake = str(self.flake) + '#desktop'
+        self.assertEqual(absolute_location_options(['install', 'git'], args),
+                         ['--flake', str(self.flake) + '#desktop', 'install', 'git'])
+
+    def test_bad_json_and_nonexistent_flake(self):
+        settings_path().parent.mkdir(parents=True)
+        settings_path().write_text('{bad json')
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(['list']), 1)
+        settings_path().unlink()
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(['config', '--set-flake', '/no/such/flake']), 1)
+        self.assertFalse(settings_path().exists())
 
 
 if __name__ == '__main__':
