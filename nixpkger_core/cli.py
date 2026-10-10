@@ -143,34 +143,39 @@ def print_package_info(records, query, limit=10):
         print(f'No directly relevant packages for {query!r}. Try regular search for broader matches.')
         return
     width = max(48, shutil.get_terminal_size((100, 24)).columns)
-    print(f\"{c['name']}Package information{c['reset']} for {query!r}  ·  {len(selected)} match(es)\")
+    print(f"{c['name']}Package information{c['reset']} for {query!r}  ·  {len(selected)} match(es)\")
     for index, item in enumerate(selected, 1):
         attr = item.get('attr') or query
         print(f"\\n{c['name']}{index}. {attr}{c['reset']}  {c['version']}{item.get('version') or ''}{c['reset']}")
-        print(f\"{c['dim']}   {'─' * min(65, width - 5)}{c['reset']}\")
+        print(f"{c['dim']}   {'─' * min(65, width - 5)}{c['reset']}\")
         description = item.get('longDescription') or item.get('description') or 'No description available.'
         description = ' '.join(description.split())
         for line in textwrap.wrap(description, width=max(36, width - 5))[:6]:
             print(f'   {line}')
-        for label, key in [('Package', 'pname'), ('License', 'license'),
-                           ('Homepage', 'homepage'), ('Source', 'position'),
-                           ('Executable', 'mainProgram')]:
+        for label, key in [('Package', 'pname'), ('Homepage', 'homepage'),
+                           ('Source', 'position'), ('Executable', 'mainProgram')]:
             value = item.get(key)
             if value:
                 value = ', '.join(map(str, value)) if isinstance(value, list) else str(value)
-                for line in textwrap.wrap(f'{label}: {value}', width=max(36, width - 5),
-                                          subsequent_indent=' ' * (len(label) + 2)):
-                    color = c['url'] if key == 'homepage' else c['value']
-                    print(f\"   {c['label']}{line.split(': ', 1)[0]}:{c['reset']} {color}{line.split(': ', 1)[-1]}{c['reset']}\" if ': ' in line else f'   {color}{line}{c[\"reset\"]}')
+                color = c['url'] if key == 'homepage' else c['value']
+                print(f"   {c['label']}{label}:{c['reset']} {color}{value}{c['reset']}")
+        licenses = (item.get('license') or '').split(', ')
+        if licenses and licenses[0]:
+            summary = ', '.join(licenses[:2])
+            if len(licenses) > 2:
+                summary += f' (+{len(licenses)-2} more)'
+            print(f"   {c['label']}License:{c['reset']} {c['value']}{summary}{c['reset']}")
         programs = item.get('programs') or []
         if programs:
-            print(f'   Programs: {", ".join(programs[:6])}' + (f' (+{len(programs)-6} more)' if len(programs)>6 else ''))
+            summary = ', '.join(programs[:6]) + (f' (+{len(programs)-6} more)' if len(programs) > 6 else '')
+            print(f"   {c['label']}Programs:{c['reset']} {c['value']}{summary}{c['reset']}")
         platforms = item.get('platforms') or []
         if platforms:
             relevant = [platform for platform in ('x86_64-linux', 'aarch64-linux') if platform in platforms]
-            print(f'   Linux: {", ".join(relevant) if relevant else "No common Linux architectures listed"}')
-        print(f'   Try: nix shell nixpkgs#{attr}')
-        print(f'   Install: nixpkger install {attr}')
+            summary = ', '.join(relevant) if relevant else 'No common Linux architectures listed'
+            print(f"   {c['label']}Linux:{c['reset']} {c['value']}{summary}{c['reset']}")
+        print(f"   {c['label']}Try:{c['reset']} {c['command']}nix shell nixpkgs#{attr}{c['reset']}")
+        print(f"   {c['label']}Install:{c['reset']} {c['command']}nixpkger install {attr}{c['reset']}")
     if len(records) > len(selected):
         print('\\nTip: use plain search for a broader results list, or --json for machine-readable data.')
 
