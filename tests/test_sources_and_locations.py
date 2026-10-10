@@ -85,7 +85,9 @@ class LayoutTests(unittest.TestCase):
         self.apps.write_text(TEMPLATE)
 
     def invoke(self, *args):
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()), \
+             patch('nixpkger_core.cli.read_settings', return_value={'branch': 'master'}), \
+             patch('nixpkger_core.cli.verify_branch'):
             return main(['--flake', str(self.root) + '#desktop', *args])
 
     def test_flake_drives_search_root(self):
@@ -214,6 +216,9 @@ class SettingsTests(unittest.TestCase):
         self.env = patch.dict(os.environ, {'XDG_CONFIG_HOME': self.temp.name})
         self.env.start()
         self.addCleanup(self.env.stop)
+        self.git_mock = patch('nixpkger_core.cli.git_branch', return_value='master')
+        self.git_mock.start()
+        self.addCleanup(self.git_mock.stop)
         self.flake = Path(self.temp.name) / 'system'
         self.flake.mkdir()
         (self.flake / 'flake.nix').write_text('{}')
@@ -261,7 +266,7 @@ class SettingsTests(unittest.TestCase):
         self.assertIn('--migrate-to-package', output.getvalue())
 
     def test_wizard_configures_saved_flake(self):
-        with patch('sys.stdin.isatty', return_value=True), patch('builtins.input', side_effect=[str(self.flake), 'desktop']), contextlib.redirect_stdout(io.StringIO()):
+        with patch('sys.stdin.isatty', return_value=True), patch('builtins.input', side_effect=[str(self.flake), 'desktop', 'master']), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(['config', '--wizard']), 0)
         self.assertEqual(read_settings()['flake'], str(self.flake) + '#desktop')
 
@@ -309,6 +314,18 @@ class SettingsTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             self.assertEqual(main(['search', 'freshrss', '--options', '--json']), 0)
         self.assertEqual(json.loads(output.getvalue()), search.return_value)
+
+    def test_mutation_refuses_missing_branch(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(['--flake', str(self.flake) + '#desktop', 'update']), 1)
+
+    def test_mutation_checks_saved_branch_before_any_rebuild(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(['config', '--set-flake', str(self.flake) + '#desktop']), 0)
+        with patch('nixpkger_core.cli.verify_branch', side_effect=ConfigError('Git branch mismatch')), \
+             patch('nixpkger_core.cli.run') as run, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(['update']), 1)
+        run.assert_not_called()
 
     def test_bad_json_and_nonexistent_flake(self):
         settings_path().parent.mkdir(parents=True)
