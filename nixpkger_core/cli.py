@@ -15,7 +15,7 @@ from urllib.parse import quote
 from .config import (ConfigError, TEMPLATE, atomic_write, backup, category_path,
                      edit_import, edit_packages, packages)
 from .locations import absolute_location_options, find_module, resolve_locations
-from .settings import read_settings, write_settings, normalize_flake, git_branch, verify_branch
+from .settings import read_settings, write_settings, normalize_flake, git_branch, verify_branch, mutation_settings
 from .sources import (NIX, enable_source, search_nixos, search_soltros, search_options,
                        current_reference)
 from .update import self_update
@@ -453,7 +453,7 @@ def main(argv=None, *, default_flake=None, default_impure=False):
         if args.action == 'self-update':
             self_update(__version__)
             return 0
-        settings = read_settings()
+        settings = mutation_settings() if args.action in MUTATIONS else read_settings()
         if args.flake is None:
             args.flake = settings.get('flake')
         if args.action in MUTATIONS and args.action != 'gc':
