@@ -4,14 +4,15 @@ import os
 from pathlib import Path
 import tempfile
 import subprocess
+import pwd
 
 from .config import ConfigError
 
 def settings_path():
     return Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config').expanduser() / 'nixpkger' / 'config.json'
 
-def read_settings():
-    path = settings_path()
+def read_settings(path=None):
+    path = Path(path) if path is not None else settings_path()
     if not path.exists():
         return {}
     try:
@@ -67,3 +68,17 @@ def verify_branch(directory, expected):
     if actual != expected:
         raise ConfigError(f'Git branch mismatch in {directory}: configured {expected!r}, currently {actual!r}. '
                           'Switch branches deliberately, then reconfigure Nixpkger if needed.')
+
+
+def mutation_settings():
+    """Read invoking user's JSON settings during direct sudo execution."""
+    if os.geteuid() != 0 or not os.environ.get('SUDO_UID'):
+        return read_settings()
+    try:
+        uid = int(os.environ['SUDO_UID'])
+        home = Path(pwd.getpwuid(uid).pw_dir)
+    except (ValueError, KeyError) as error:
+        raise ConfigError(f'Cannot identify invoking sudo user: {error}') from error
+    if uid == 0:
+        return read_settings()
+    return read_settings(home / '.config' / 'nixpkger' / 'config.json')
