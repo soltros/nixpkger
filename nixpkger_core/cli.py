@@ -237,6 +237,34 @@ class Application:
             command.append('--impure')
         run(command, env=nix_environment(self.args.allow_unfree))
 
+    def prepare_flake_install(self):
+        """Fast-forward the configured branch and refresh flake inputs as the owner."""
+        if self.flake is None:
+            return
+        expected = self.args.expected_branch or mutation_settings().get('branch')
+        if not expected:
+            raise ConfigError('A saved Git branch is required for flake installation.')
+        directory = self.flake
+        verify_branch(directory, expected)
+        # Do not create root-owned Git files or flake.lock when called via sudo.
+        prefix = []
+        if os.geteuid() == 0 and os.environ.get('SUDO_UID'):
+            import pwd
+            owner = pwd.getpwuid(int(os.environ['SUDO_UID'])).pw_name
+            prefix = ['sudo', '-u', owner, '-H', '--']
+        upstream = run([*prefix, 'git', '-C', str(directory), 'rev-parse',
+                        '--abbrev-ref', '--symbolic-full-name', '@{upstream}'],
+                       capture_output=True, text=True).stdout.strip()
+        if upstream.rsplit('/', 1)[-1] != expected:
+            raise ConfigError(f'Upstream {upstream!r} does not track configured branch {expected!r}.')
+        print(f'Updating Git branch {expected} (fast-forward only)...', flush=True)
+        run([*prefix, 'git', '-C', str(directory), 'pull', '--ff-only'],
+            env=nix_environment(self.args.allow_unfree))
+        verify_branch(directory, expected)
+        print('Refreshing flake.lock before package installation...', flush=True)
+        run([*prefix, *NIX, 'flake', 'update'],
+            cwd=directory, env=nix_environment(self.args.allow_unfree))
+
     def validate_package_names(self, names):
         """Reject unknown nixpkgs attributes before editing the user's flake."""
         ordinary = [name for name in names if not name.startswith('soltros.')]
@@ -351,6 +379,7 @@ class Application:
             if not path.exists() and (not category or action == 'remove'):
                 raise ConfigError(f'Configuration file not found: {path}')
             if action == 'install':
+                self.prepare_flake_install()
                 self.validate_package_names(self.args.packages)
             updated = edit_packages(source, self.args.packages, action == 'remove')
             if action == 'install' and any(name.startswith('soltros.') for name in self.args.packages):
