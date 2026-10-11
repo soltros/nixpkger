@@ -237,6 +237,35 @@ class Application:
             command.append('--impure')
         run(command, env=nix_environment(self.args.allow_unfree))
 
+    def validate_package_names(self, names):
+        """Check nixpkgs attributes before writing configuration changes."""
+        ordinary = [name for name in names if not name.startswith('soltros.')]
+        if not ordinary:
+            return
+        if self.flake is None:
+            raise ConfigError('A configured flake is required for package validation.')
+        # Use the nixpkgs input from the selected checkout, never system channels.
+        expression = (
+            'let f = builtins.getFlake ' + json.dumps(str(self.flake)) +
+            '; pkgs = import f.inputs.nixpkgs { system = builtins.currentSystem; }; '
+            'in map (path: builtins.hasAttr (builtins.head path) pkgs && '
+            'builtins.hasAttr (builtins.concatStringsSep "." path) pkgs) []'
+        )
+        # attrByPath works with nested attributes, unlike hasAttr on a dotted name.
+        checks = ' && '.join(
+            '(builtins.hasAttr ' + json.dumps(name.split('.')[0]) + ' pkgs'
+            + (''.join(' && builtins.hasAttr ' + json.dumps(part) + ' ('
+                       + 'pkgs.' + '.'.join(name.split('.')[:i]) + ')'
+                       for i, part in enumerate(name.split('.')[1:], 1)))
+            + ')' for name in ordinary
+        )
+        expression = expression[:expression.index('in map')] + 'in ' + (checks or 'true')
+        result = run([*NIX, 'eval', '--impure', '--json', '--expr', expression],
+                     capture_output=True, text=True, env=nix_environment(self.args.allow_unfree))
+        if json.loads(result.stdout) is False:
+            raise ConfigError('At least one package attribute is not present in this flake\'s nixpkgs. '
+                              'For soltros_nixpkgs packages such as SharpEmu, use soltros.sharpemu.')
+
     def change(self, changes):
         """Validate all edits before writing; restore source files on failure."""
         changes = {path.resolve(): source for path, source in changes.items()}
@@ -326,6 +355,8 @@ class Application:
             source = path.read_text(encoding='utf-8') if path.exists() else TEMPLATE
             if not path.exists() and (not category or action == 'remove'):
                 raise ConfigError(f'Configuration file not found: {path}')
+            if action == 'install':
+                self.validate_package_names(self.args.packages)
             updated = edit_packages(source, self.args.packages, action == 'remove')
             if action == 'install' and any(name.startswith('soltros.') for name in self.args.packages):
                 updated = enable_source(updated, run)
