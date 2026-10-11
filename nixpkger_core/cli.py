@@ -238,33 +238,28 @@ class Application:
         run(command, env=nix_environment(self.args.allow_unfree))
 
     def validate_package_names(self, names):
-        """Check nixpkgs attributes before writing configuration changes."""
+        """Reject unknown nixpkgs attributes before editing the user's flake."""
         ordinary = [name for name in names if not name.startswith('soltros.')]
         if not ordinary:
             return
         if self.flake is None:
             raise ConfigError('A configured flake is required for package validation.')
-        # Use the nixpkgs input from the selected checkout, never system channels.
-        expression = (
-            'let f = builtins.getFlake ' + json.dumps(str(self.flake)) +
-            '; pkgs = import f.inputs.nixpkgs { system = builtins.currentSystem; }; '
-            'in map (path: builtins.hasAttr (builtins.head path) pkgs && '
-            'builtins.hasAttr (builtins.concatStringsSep "." path) pkgs) []'
+        paths = [name.split('.') for name in ordinary]
+        expr = (
+            'let flake = builtins.getFlake ' + json.dumps(str(self.flake)) +
+            '; pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; }; '
+            'in builtins.map (path: pkgs.lib.hasAttrByPath path pkgs) ' + json.dumps(paths)
         )
-        # attrByPath works with nested attributes, unlike hasAttr on a dotted name.
-        checks = ' && '.join(
-            '(builtins.hasAttr ' + json.dumps(name.split('.')[0]) + ' pkgs'
-            + (''.join(' && builtins.hasAttr ' + json.dumps(part) + ' ('
-                       + 'pkgs.' + '.'.join(name.split('.')[:i]) + ')'
-                       for i, part in enumerate(name.split('.')[1:], 1)))
-            + ')' for name in ordinary
-        )
-        expression = expression[:expression.index('in map')] + 'in ' + (checks or 'true')
-        result = run([*NIX, 'eval', '--impure', '--json', '--expr', expression],
+        result = run([*NIX, 'eval', '--impure', '--json', '--expr', expr],
                      capture_output=True, text=True, env=nix_environment(self.args.allow_unfree))
-        if json.loads(result.stdout) is False:
-            raise ConfigError('At least one package attribute is not present in this flake\'s nixpkgs. '
-                              'For soltros_nixpkgs packages such as SharpEmu, use soltros.sharpemu.')
+        found = json.loads(result.stdout)
+        missing = [name for name, available in zip(ordinary, found) if not available]
+        if missing:
+            suggestion = (' SharpEmu is available as soltros.sharpemu.'
+                          if 'sharpemu' in missing else
+                          ' For packages from soltros_nixpkgs, use the soltros. prefix.')
+            raise ConfigError('Package attribute(s) not found in the configured nixpkgs: '
+                              + ', '.join(missing) + '.' + suggestion)
 
     def change(self, changes):
         """Validate all edits before writing; restore source files on failure."""
