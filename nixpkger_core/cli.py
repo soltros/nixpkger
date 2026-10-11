@@ -265,6 +265,45 @@ class Application:
         run([*prefix, *NIX, 'flake', 'update'],
             cwd=directory, env=nix_environment(self.args.allow_unfree))
 
+    def publish_flake_install(self, changed_paths, package_names):
+        """Commit only managed flake changes after successful activation."""
+        if self.flake is None or not changed_paths:
+            return
+        expected = self.args.expected_branch or mutation_settings().get('branch')
+        verify_branch(self.flake, expected)
+        paths = [Path(path).resolve() for path in changed_paths]
+        lock = (self.flake / 'flake.lock').resolve()
+        if lock.is_file():
+            paths.append(lock)
+        paths = list(dict.fromkeys(paths))
+        for path in paths:
+            if not path.is_relative_to(self.flake):
+                raise ConfigError(f'Refusing to stage a file outside the configured flake: {path}')
+        prefix = []
+        if os.geteuid() == 0 and os.environ.get('SUDO_UID'):
+            import pwd
+            uid = int(os.environ['SUDO_UID'])
+            if uid != 0:
+                prefix = ['sudo', '-u', pwd.getpwuid(uid).pw_name, '-H', '--']
+        command = [*prefix, 'git', '-C', str(self.flake)]
+        # Refuse to absorb any unrelated staged work into this commit.
+        staged = run([*command, 'diff', '--cached', '--name-only'],
+                     capture_output=True, text=True).stdout.strip()
+        if staged:
+            raise ConfigError('Git index already contains staged changes. '
+                              'Installation succeeded, but automatic commit was skipped to protect your work.')
+        run([*command, 'add', '--', *[str(path.relative_to(self.flake)) for path in paths]])
+        changes = run([*command, 'diff', '--cached', '--name-only'],
+                      capture_output=True, text=True).stdout.strip()
+        if not changes:
+            print('No new flake changes to commit.')
+            return
+        summary = ', '.join(package_names)
+        run([*command, 'commit', '-m', f'nixpkger: install {summary}'])
+        verify_branch(self.flake, expected)
+        run([*command, 'push'])
+        print(f'Committed and pushed installation on {expected}.')
+
     def validate_package_names(self, names):
         """Reject unknown nixpkgs attributes before editing the user's flake."""
         ordinary = [name for name in names if not name.startswith('soltros.')]
@@ -300,7 +339,7 @@ class Application:
                 originals[path] = old
         if not originals:
             print('No changes needed.')
-            return
+            return []
         for path, old in originals.items():
             if old is not None:
                 location = backup(path, self.root / 'app_backups', path.stem + '_backup')
@@ -320,6 +359,7 @@ class Application:
             print('Previous configuration files restored. A failed activation may have partially changed the running system; inspect the rebuild output.', file=sys.stderr)
             raise
         print('Configuration updated and rebuilt.')
+        return list(originals)
 
     def execute(self):
         action = self.args.action
@@ -384,7 +424,9 @@ class Application:
             updated = edit_packages(source, self.args.packages, action == 'remove')
             if action == 'install' and any(name.startswith('soltros.') for name in self.args.packages):
                 updated = enable_source(updated, run)
-            self.change({path: updated})
+            changed_paths = self.change({path: updated})
+            if action == 'install' and self.flake is not None:
+                self.publish_flake_install(changed_paths, self.args.packages)
             if category and action == 'install':
                 print(f'Ensure this category is imported using: nixpkger add-category {category}')
         elif action == 'add-category':
